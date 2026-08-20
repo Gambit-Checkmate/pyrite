@@ -209,6 +209,45 @@ was stale.
 
 ---
 
+**Friction 7 — not a pyrite bug, recorded here because the workflow around pyrite has a
+concurrency hole: enumerated `git add` + `git commit -- <paths>` does NOT isolate a commit.**
+
+**Context:** several agents write to one shared repo concurrently. The documented safety rule is
+to enumerate every path on BOTH `git add` and `git commit`, never `git add -A`, never a bare
+commit. I followed it exactly.
+
+**Command:**
+```
+git add cascade-research/research-notes/litigation-surface-search-strategy-and-the-wider-pattern.md
+git commit -q -m "..." -- cascade-research/research-notes/litigation-surface-search-strategy-and-the-wider-pattern.md
+```
+
+**Got:** a commit containing **59 files** — mine plus 58 belonging to a concurrent worker, under
+my commit message. `59 files changed, 359669 insertions(+)`.
+
+**Why:** a sibling agent ran its own `git add` in the window between my `add` and my `commit`.
+`git commit -- <pathspec>` restricts *which paths are committed from the working tree*, but the
+already-staged sibling files came along anyway. Enumerating paths on both commands does not make
+the operation atomic; the index is shared process-wide.
+
+**Verified no data loss:** all 58 files intact, the worker's 846-row CSV present, no
+cross-contamination from a third agent. The cost is attribution — 58 files carry a commit message
+about an unrelated legal-doctrine correction, which makes `git log` misleading for anyone tracing
+that work later.
+
+**Would have helped:** the reliable primitive here is `git -c core.hooksPath=/dev/null commit` on
+a temporary index, or `git stash`-free isolation via `GIT_INDEX_FILE`:
+```
+GIT_INDEX_FILE=$(mktemp) git add <paths> && GIT_INDEX_FILE=... git commit ...
+```
+Worth documenting in whatever skill teaches the enumerate-paths rule, because that rule reads as
+though it guarantees isolation and it does not.
+
+**Severity:** annoyed (cosmetic here; would be serious if a partial or broken file were staged by
+the sibling at that moment)
+
+---
+
 **Worked well — and these carried real weight:**
 
 - **The stale-index warning names the specific KBs and goes to stderr.**
