@@ -44,10 +44,40 @@ not — it went to the other registry. I only diagnosed it because a project ski
 happens to document the hazard in a boldface paragraph. Without that I would have
 filed a data-loss bug.
 
-**Would have helped:** print the resolved config dir on any `task`/`kb`
-subcommand when more than one candidate config exists — or at minimum a one-line
-stderr note (`using config: /Users/markr/kb`) the way the stale-index warning
-already works. A `pyrite config which` would also do it.
+**Root cause (diagnosed after filing, 2026-08-20):** there are two complete,
+independently-maintained config files, and which one you get depends entirely on
+whether `PYRITE_CONFIG_DIR` is set in the environment:
+
+```
+/Users/markr/.pyrite/config.yaml   47 knowledge_bases   <- bare `pyrite` (default)
+/Users/markr/kb/config.yaml        52 knowledge_bases   <- `~/kb/kb` (wrapper sets PYRITE_CONFIG_DIR)
+```
+
+Diff of the two registries:
+
+- only in `~/kb`: `daily-capture-reports`, `detention-pipeline-research`,
+  `guide`, `igsa-holders`, `pitch-pipeline`, `svelte`
+- only in `~/.pyrite`: `test-release`
+
+So this is not a sync bug or a race — it is two divergent registries that drifted
+because every `kb create` writes to whichever config the invoking shell happened
+to resolve. The 159-vs-161 task delta is downstream of the 47-vs-52 KB delta: the
+missing tasks live in KBs the default config has never heard of.
+
+That also explains a related failure documented elsewhere in this corpus (`kb
+create` appearing to succeed but the KB being invisible to the task subsystem) —
+same cause, different symptom.
+
+**Would have helped, in order of value:**
+
+1. **Print the resolved config path on stderr** when a command touches the
+   registry, the way the stale-index warning already names specific KBs. One
+   line: `using config: /Users/markr/kb/config.yaml (52 KBs)`.
+2. **`pyrite config which`** / `pyrite config diff <other>` so drift is
+   inspectable rather than inferred from a count mismatch.
+3. **Warn on startup if a second candidate config exists** and its KB set is not
+   a subset of the active one. This is the check that would have caught the drift
+   before it reached six KBs.
 
 **Severity:** slowed (real risk: blocked / phantom data loss)
 
