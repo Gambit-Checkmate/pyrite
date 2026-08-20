@@ -180,6 +180,35 @@ other hooks in the chain get this right; this one does not.
 
 ---
 
+**Friction 6 — `task update -s done` reports success but the task can vanish from the
+index; `index sync` repairs it, but the failure looks like data loss.**
+
+**Command:** `~/kb/kb task update <id> -k cascade-research -s done`
+
+**Got:** CLI reported success. The task file on disk correctly showed `status: done`. But
+`~/kb/kb task get <id>` and `task list` both returned NOT_FOUND / absent — the entry was gone
+from the index while present on disk.
+
+**Observed, not concluded:** a plain `~/kb/kb index sync -k cascade-research` restored it. The
+worker who hit this first escalated to a full `index build -k <kb> -f --no-embed`, which is
+expensive and was not necessary.
+
+**Friction:** the symptom reads as "my write was lost." Two different agents in one session
+independently reached for a full rebuild before trying sync. The write had landed; only the index
+was stale.
+
+**Would have helped:**
+1. Have `task update` sync the index for the touched entry, or say it didn't (`status written;
+   index not refreshed — run index sync`).
+2. When `get` misses but the file exists on disk, say so rather than returning
+   `NOT_FOUND / retryable: false`. This is the same message problem as Friction 3, now with a
+   confirmed cause: **the filesystem is the source of truth and the index lags it, but the error
+   text asserts nonexistence.**
+
+**Severity:** slowed (reads as data loss; provokes unnecessary full rebuilds)
+
+---
+
 **Worked well — and these carried real weight:**
 
 - **The stale-index warning names the specific KBs and goes to stderr.**
