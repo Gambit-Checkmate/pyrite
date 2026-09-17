@@ -15,6 +15,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { brandStore } from '$lib/stores/brand.svelte';
 	import { buildEntrySeo } from '$lib/utils/seo';
+	import { jsonForScriptTag } from '$lib/utils/sanitize';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
@@ -211,7 +212,7 @@
 		<meta name="twitter:title" content={seo.ogTitle} />
 		<meta name="twitter:description" content={seo.ogDescription} />
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		{@html `<script type="application/ld+json">${JSON.stringify(seo.jsonLd)}</script>`}
+		{@html `<script type="application/ld+json">${jsonForScriptTag(seo.jsonLd)}</script>`}
 	{:else}
 		<title>{entryStore.current?.title ?? 'Entry'} — {brandStore.name}</title>
 	{/if}
@@ -430,6 +431,7 @@
 	import { marked } from 'marked';
 	import { renderWikilinks } from '$lib/editor/wikilink-utils';
 	import { renderCallouts } from '$lib/editor/callouts';
+	import { sanitizeHtml } from '$lib/utils/sanitize';
 
 	// Custom renderer that adds id attributes to headings for outline scroll-to
 	const renderer = new marked.Renderer();
@@ -455,6 +457,8 @@
 				return `${open.replace('<p', `<p id="block-${blockId}"`)}${content}${close}`;
 			}
 		);
-		return html;
+		// Last, so nothing the passes above emit can bypass it. Entry bodies are
+		// written by other users and by agents ingesting web content.
+		return sanitizeHtml(html);
 	}
 </script>

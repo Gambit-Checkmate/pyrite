@@ -4,6 +4,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from pyrite.services.git_service import GitService
 
 
@@ -238,3 +240,83 @@ class TestAddRemote:
             Path("/tmp/test"), "upstream", "https://github.com/org/repo"
         )
         assert success is False
+
+
+class TestGitHubHostMatching:
+    """The host must *be* github.com. Matching it as a substring let a URL like
+    https://evil.example/github.com/a/b parse as a GitHub repo and -- worse --
+    receive the caller's OAuth token in its userinfo."""
+
+    HOSTILE = [
+        "https://evil.example/github.com/org/repo",
+        "https://github.com.evil.example/org/repo",
+        "https://evilgithub.com/org/repo",
+        "https://evil.example/?x=github.com/org/repo",
+        "https://github.com@evil.example/org/repo",
+        "https://evil.example/org/repo#github.com",
+        "git@evil.example:github.com/org/repo.git",
+    ]
+
+    @pytest.mark.parametrize("url", HOSTILE)
+    def test_token_never_injected_for_non_github_host(self, url):
+        assert "SECRET" not in GitService._inject_token(url, "SECRET")
+
+    @pytest.mark.parametrize("url", HOSTILE)
+    def test_non_github_host_does_not_parse(self, url):
+        assert GitService.parse_github_url(url) is None
+
+    def test_http_scheme_never_gets_token(self):
+        assert "SECRET" not in GitService._inject_token("http://github.com/org/repo", "SECRET")
+
+    def test_www_and_case_variants_still_work(self):
+        assert GitService.parse_github_url("https://GitHub.com/org/repo") == ("org", "repo")
+        assert GitService.parse_github_url("https://www.github.com/org/repo") == ("org", "repo")
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://github.com/-org/repo",
+            "https://github.com/org/--upload-pack=touch${IFS}pwned",
+            "https://github.com/org/re po",
+            "https://github.com/org/..",
+        ],
+    )
+    def test_owner_and_repo_names_are_validated(self, url):
+        assert GitService.parse_github_url(url) is None
+
+
+class TestGitArgumentInjection:
+    """Caller-supplied values must never be parsed by git as options."""
+
+    def test_clone_separates_positionals_with_double_dash(self, tmp_path):
+        with patch("pyrite.services.git_service.subprocess.run") as run:
+            run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            GitService.clone("https://github.com/org/repo", tmp_path / "dest")
+        cmd = run.call_args[0][0]
+        assert "--" in cmd
+        assert cmd.index("--") < cmd.index("https://github.com/org/repo")
+
+    @pytest.mark.parametrize("url", ["--upload-pack=touch /tmp/pwned", "-oProxyCommand=x"])
+    def test_clone_refuses_option_shaped_url(self, url, tmp_path):
+        with patch("pyrite.services.git_service.subprocess.run") as run:
+            ok, msg = GitService.clone(url, tmp_path / "dest")
+        assert not ok
+        run.assert_not_called()
+
+    def test_clone_refuses_option_shaped_branch(self, tmp_path):
+        with patch("pyrite.services.git_service.subprocess.run") as run:
+            ok, _ = GitService.clone(
+                "https://github.com/org/repo", tmp_path / "dest", branch="--upload-pack=x"
+            )
+        assert not ok
+        run.assert_not_called()
+
+    def test_commit_stages_paths_after_double_dash(self, tmp_path):
+        with (
+            patch.object(GitService, "is_git_repo", return_value=True),
+            patch("pyrite.services.git_service.subprocess.run") as run,
+        ):
+            run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            GitService.commit(tmp_path, "msg", paths=["--force"])
+        add_cmd = next(c[0][0] for c in run.call_args_list if c[0][0][:2] == ["git", "add"])
+        assert add_cmd == ["git", "add", "--", "--force"]

@@ -7,10 +7,18 @@ Token handling is done by injecting credentials into URLs or environment.
 
 import logging
 import os
+import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+_GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
+_GITHUB_SSH_PREFIX = "git@github.com:"
+# GitHub owner/repo names: alphanumerics plus . _ - and never a leading "-",
+# which git would read as an option.
+_GITHUB_NAME_RE = re.compile(r"[A-Za-z0-9_.][A-Za-z0-9_.-]*")
 
 # Env vars a parent git process (e.g. a pre-commit hook, itself a child of
 # `git commit`) sets for its own subprocesses. If a GitService call inherits
@@ -76,12 +84,18 @@ class GitService:
         Returns:
             (success, message)
         """
+        # A value beginning with "-" would be parsed by git as an option
+        # (--upload-pack=<cmd> is code execution). "--" below covers the
+        # positionals; --branch's value is an option argument, so refuse it.
+        if remote_url.startswith("-") or branch.startswith("-"):
+            return False, "Clone failed: invalid repository URL or branch"
+
         url = GitService._inject_token(remote_url, token)
 
         cmd = ["git", "clone", "--branch", branch]
         if depth is not None:
             cmd.extend(["--depth", str(depth)])
-        cmd.extend([url, str(local_path)])
+        cmd.extend(["--", url, str(local_path)])
 
         try:
             result = subprocess.run(
@@ -400,19 +414,44 @@ class GitService:
           https://github.com/owner/repo.git
           git@github.com:owner/repo.git
         """
-        url = url.rstrip("/")
-        if url.endswith(".git"):
-            url = url[:-4]
+        path = GitService._github_repo_path(url)
+        if path is None:
+            return None
+        path = path.strip("/")
+        if path.endswith(".git"):
+            path = path[:-4]
+        parts = path.split("/")
+        if len(parts) < 2:
+            return None
+        owner, repo = parts[0], parts[1]
+        if not _GITHUB_NAME_RE.fullmatch(owner) or not _GITHUB_NAME_RE.fullmatch(repo):
+            return None
+        if repo in (".", ".."):
+            return None
+        return owner, repo
 
-        if "github.com/" in url:
-            parts = url.split("github.com/")[-1].split("/")
-            if len(parts) >= 2:
-                return parts[0], parts[1]
-        elif "github.com:" in url:
-            parts = url.split("github.com:")[-1].split("/")
-            if len(parts) >= 2:
-                return parts[0], parts[1]
-        return None
+    @staticmethod
+    def _github_repo_path(url: str) -> str | None:
+        """Return the path portion of `url` iff its host *is* github.com.
+
+        The host is compared for equality after real URL parsing. Searching
+        the string for "github.com" is not a host check: it also matches
+        https://evil.example/github.com/x, github.com.evil.example, query
+        strings and fragments -- and _inject_token trusted that match enough
+        to hand over the caller's OAuth token.
+        """
+        if url.startswith(_GITHUB_SSH_PREFIX):
+            return url[len(_GITHUB_SSH_PREFIX) :]
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            return None
+        # Userinfo is refused outright: "https://github.com@evil.example/" has
+        # hostname evil.example, and a legitimate caller never supplies it.
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        if (parsed.hostname or "").lower() not in _GITHUB_HOSTS:
+            return None
+        return parsed.path
 
     @staticmethod
     def commit(
@@ -443,7 +482,7 @@ class GitService:
             if paths:
                 for p in paths:
                     result = subprocess.run(
-                        ["git", "add", p],
+                        ["git", "add", "--", p],
                         cwd=str(local_path),
                         capture_output=True,
                         text=True,
@@ -604,13 +643,15 @@ class GitService:
         """Inject OAuth token into HTTPS URL for authentication."""
         if not token:
             return url
-        if url.startswith("git@github.com:"):
-            url = url.replace("git@github.com:", "https://github.com/")
-            if not url.endswith(".git"):
-                url += ".git"
-        if "github.com" in url and url.startswith("https://"):
-            return url.replace("https://", f"https://oauth2:{token}@")
-        return url
+        path = GitService._github_repo_path(url)
+        if path is None:
+            return url
+        path = "/" + path.lstrip("/")
+        if url.startswith(_GITHUB_SSH_PREFIX) and not path.endswith(".git"):
+            path += ".git"
+        # Rebuilt from the verified host rather than string-replaced into the
+        # caller's URL, so the token can only ever be sent to github.com.
+        return f"https://oauth2:{token}@github.com{path}"
 
     @staticmethod
     def _sanitize_output(output: str, token: str | None) -> str:

@@ -127,7 +127,9 @@ def ai_status(request: Request, llm: LLMService = Depends(get_llm_service)):
     return AIStatusResponse(**status)
 
 
-@router.post("/ai/test")
+# write tier: pings the provider with the operator's key (network + quota),
+# and sits behind the same settings page as PUT /settings.
+@router.post("/ai/test", dependencies=[Depends(requires_tier("write"))])
 @limiter.limit("10/minute")
 def ai_test_connection(request: Request, llm: LLMService = Depends(get_llm_service)):
     """Actually test the AI connection by pinging the provider."""

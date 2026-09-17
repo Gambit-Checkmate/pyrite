@@ -8,7 +8,7 @@ from ...exceptions import EntryNotFoundError
 from ...plugins.registry import get_registry
 from ...services.kb_service import KBService
 from ...utils.metadata import parse_metadata
-from ..api import get_kb_service, limiter, negotiate_response
+from ..api import get_kb_service, limiter, negotiate_response, requires_kb_tier
 from ..schemas import (
     CollectionEntriesResponse,
     CollectionListResponse,
@@ -85,7 +85,11 @@ def list_collections(
     return CollectionListResponse(collections=collections, total=len(collections))
 
 
-@router.post("/collections", response_model=CollectionResponse)
+@router.post(
+    "/collections",
+    response_model=CollectionResponse,
+    dependencies=[Depends(requires_kb_tier("write"))],
+)
 @limiter.limit("60/minute")
 def create_collection(
     request: Request,

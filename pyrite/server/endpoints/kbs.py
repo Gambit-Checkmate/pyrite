@@ -15,6 +15,7 @@ from ..api import (
     get_kb_service,
     limiter,
     negotiate_response,
+    requires_tier,
 )
 from ..schemas import KBHealthResponse, KBInfo, KBListResponse
 
@@ -136,7 +137,9 @@ def orient_kb(
     return result
 
 
-@router.post("/kbs/{kb_name}/export")
+# write tier: this clones and pushes to a caller-chosen URL using the caller's
+# GitHub token, the same capability the /repos router gates at write.
+@router.post("/kbs/{kb_name}/export", dependencies=[Depends(requires_tier("write"))])
 @limiter.limit("5/minute")
 def export_kb_to_repo(
     kb_name: str,

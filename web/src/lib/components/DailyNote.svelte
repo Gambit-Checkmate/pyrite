@@ -5,6 +5,7 @@
 	import { uiStore } from '$lib/stores/ui.svelte';
 	import type { EntryResponse } from '$lib/api/types';
 	import { marked } from 'marked';
+	import { sanitizeHtml } from '$lib/utils/sanitize';
 
 	interface Props {
 		selectedDate: string;
@@ -127,7 +128,7 @@
 	}
 
 	function renderMarkdown(md: string): string {
-		return marked.parse(md, { async: false }) as string;
+		return sanitizeHtml(marked.parse(md, { async: false }) as string);
 	}
 
 	// Load daily note when date or KB changes
