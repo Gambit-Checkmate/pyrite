@@ -1,0 +1,34 @@
+---
+id: cli-output-is-inconsistent-when-stdout-is-not-a-tty
+title: CLI output is inconsistent when stdout is not a TTY
+type: backlog_item
+tags:
+- cli
+- agent-experience
+importance: 5
+kind: improvement
+status: proposed
+priority: low
+effort: S
+rank: 0
+---
+
+## Problem
+
+Found walking the README Quick Start in a clean environment: `init` and `search`
+print raw JSON by default when stdout is not a TTY, while `create` prints plain
+text. The semantic search result also dumps every DB column (`fips`,
+`content_hash`, `rowid`), which is noise for both people and agents.
+
+## Fix
+
+One rule for every command: human text unless `-f json` (or a documented
+non-TTY default applied uniformly). Search results return the documented entry
+shape, not the row.
+
+## Acceptance
+
+- [ ] A test runs each Quick Start command with piped stdout and asserts one
+      consistent format.
+
+Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health). Related: [[unify-rest-mcp-error-response-shape]].

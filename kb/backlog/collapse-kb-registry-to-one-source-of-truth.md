@@ -13,7 +13,7 @@ links:
 importance: 5
 kind: tech_debt
 status: proposed
-priority: medium
+priority: high
 effort: M
 rank: 0
 ---
@@ -165,3 +165,11 @@ and ephemeral leasing are 0.26 (see the ADR) — do NOT implement here.
 Sibling of [[verify-after-write-on-the-index-path]]; together they retire the derived-state-synchronization bug class.
 
 The same dual-registry class also exists one level up in the primary deployment: `~/kb/config.yaml` and `~/.pyrite/config.yaml` disagree on paths for ~25 KBs (biography KBs point at `pyrite-kb-demo/` in one and `tcp-kb-internal/` in the other; `~/.pyrite` still registers stale `/private/tmp/test-release-kb` and `test-tasks`). The ADR resolves this via the one-file consolidation above. This also closes the registry-ADR item in [[file-missing-adrs-for-session-arc-decisions]].
+
+## Priority raised 2026-09-17
+
+Raised medium -> high. The project review found outside PR #4 (a KB created over
+REST is invisible until restart) is the **fourth** occurrence of this bug class,
+after closed issues #1 and #2 and commit 37a37c9, and no test checks that
+`add_kb()` refreshes `_db_kb_cache`. See
+[[live-server-integration-tests-for-multi-request-flows-plus-regression-tests-for-the-three-outside-prs]].

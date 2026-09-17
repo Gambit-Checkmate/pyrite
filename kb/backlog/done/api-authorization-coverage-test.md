@@ -1,12 +1,7 @@
 ---
 id: api-authorization-coverage-test
-type: backlog_item
 title: "No test asserts every /api route is guarded; authorization is applied by convention, not enforced"
-kind: bug
-status: proposed
-priority: high
-effort: S
-created: "2026-09-17"
+type: backlog_item
 tags: [security, api, testing, authorization, ci]
 links:
 - target: repo-access-is-a-capability-not-a-tier
@@ -15,6 +10,13 @@ links:
 - target: hosting-security-hardening
   relation: related
   kb: pyrite
+importance: 5
+kind: bug
+status: done
+priority: high
+effort: S
+rank: 0
+created: "2026-09-17"
 ---
 
 ## Problem

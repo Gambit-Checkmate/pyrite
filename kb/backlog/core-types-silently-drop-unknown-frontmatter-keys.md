@@ -112,3 +112,24 @@ whether `assigned_at` should be persisted.
 - The `status`-specific case from the 2026-08-28 FEEDBACK entry is covered:
   an entry missing `type:` retains `status:` in its frontmatter after a
   round trip, whatever type it falls back to.
+
+## Evidence 2026-09-17: `pyrite update` deletes `milestone:` from backlog items
+
+Plugin subclasses of NoteEntry are affected too, and the loss is triggered by the
+workflow the dev skill mandates. Running
+
+    pyrite update mcp-tool-kb-recent-for-what-changed-orientation-queries -k pyrite -f status=done
+
+on a `backlog_item` rewrote the file without its `milestone: "0.13"` line (and
+added `importance`, `rank` defaults). `BacklogItemEntry` has no `milestone`
+field, so load -> save drops it. Every `status=done` close-out through the CLI
+silently strips `milestone` (and any other undeclared key) from the item; the
+edit was reverted with git, which is the only reason it was noticed. Files in
+`kb/backlog/` carrying `milestone:` at the time: see `grep -rl "^milestone:" kb/backlog`.
+
+Second instance the same day: closing `api-authorization-coverage-test` with
+`-f status=done` dropped its `created: "2026-09-17"` line (restored by hand).
+
+Acceptance addition: a round-trip test over **every registered entry type
+(core and plugin)** — load a file with an unknown top-level key, save, assert
+the key survives. Same shape as the MCP dispatch smoke test.

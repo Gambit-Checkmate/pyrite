@@ -17,7 +17,7 @@ links:
   kb: pyrite
 importance: 5
 kind: bug
-status: proposed
+status: in_progress
 priority: high
 effort: S
 rank: 0
@@ -122,3 +122,26 @@ Filed from the 2026-09-17 whole-project review; one of five structural
 checks (see [[mcp-tool-dispatch-smoke-test-every-registered-tool]] for the
 set). This one matters most for outside contributors: running the documented
 `pre-commit install` currently risks rewriting *their* clone's identity.
+
+## Status 2026-09-17
+
+**Done** (`88da503`): repo-root `conftest.py` drops every `GIT_*` variable before
+collection and isolates global/system git config; `tests/test_git_env_isolation.py`
+is the end-to-end reproduction this ticket owed (it failed for both git-using
+test files before the guard); `.mailmap` remaps the 40 pushed `Test` commits;
+local identity unset, dead worktree pruned, `test/alice` deleted.
+
+**Worse than the identity clobber, same cause:** at 16:44 local on 2026-09-17 the
+real `.git/index` was replaced by a 137-byte index holding one fixture
+`README.md`, so git showed all ~1,500 tracked files as staged deletions. A plain
+`git commit` in any session at that moment would have committed the deletion of
+the repo. Repaired with a mixed `git reset`. The conftest guard closes the test
+side of this.
+
+**Still open — item 3:** production git subprocess calls that skip `_git_env()`:
+`pyrite/services/version_service.py:57`, `pyrite/storage/document_manager.py:114,121`,
+`pyrite/services/kb_service.py:1386`. Route them through `_git_env()` and add a
+test that fails on a new bare `subprocess` git call outside `GitService`. Also:
+the commit stage no longer runs pytest at all
+([[fast-commit-hooks-full-suite-at-pre-push-ci-is-the-gate]]), which removes the
+most common trigger, but pre-push still runs the suite as a child of git.
