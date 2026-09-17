@@ -309,3 +309,197 @@ tractable at all.
    and the shared-instance pilot is the 0.25 epic. Does this ADR block the
    pilot, or does the pilot ship with the operator workspace and a manually
    scoped credential?
+
+## Review response (2026-09-17)
+
+> Written during a whole-project review (code health, repo hygiene, docs,
+> positioning, and a walk through demo.pyrite.wiki as an anonymous visitor).
+> This is input to the draft, not a decision. It agrees with §1 and §2,
+> argues for a narrower §3 and §4, picks a shape for §5, and proposes a
+> sequence.
+
+### The question the draft does not ask: what is the UI *for*?
+
+The draft sorts frontends by audience and domain. Both axes assume the UI's
+job is already known. It is worth stating, because it determines which
+routes deserve investment.
+
+The positioning that the evidence supports — the newsroom origin, the
+`FEEDBACK.md` sessions with four agents claiming tasks atomically across
+50+ KBs, an outside contributor running Pyrite as a server for agents — is
+*knowledge your agents can write to, and you can verify.* Under that
+positioning, agents and the CLI are the primary **authoring** surface. The
+web UI's job is **human oversight of agent work**.
+
+Most of the current UI is built for the opposite job. Tiptap + CodeMirror
+dual editing, slash commands, daily notes, quick switcher, web clipper and
+gallery views are a Notion/Obsidian feature list. A solo maintainer does not
+win that contest, and does not need to: files are the source of truth, so
+anyone who wants a polished editor can point Obsidian or VS Code at the same
+directory. That is a consequence of ADR-0001, not a gap.
+
+The routes no competitor has are `changes`, `merge-queue`, `qa` and `tasks`.
+In the demo's sidebar, those that show above the fold sit at the bottom of a
+flat 12-item list. The context section of this ADR classifies exactly these
+routes as "operator-only" — which is true, and is also a list of the
+product's differentiators.
+
+### Agreement: §1 and §2
+
+The API as the only security boundary, and grants rather than modes, are
+both right. The same-day review supports making
+[[api-authorization-coverage-test]] a hard prerequisite rather than hygiene:
+authorization applied by convention does drift, and under this ADR a drifted
+endpoint is a hole in the only boundary. Build the coverage test first;
+details of what it would catch today belong in the fix PR, not in a public
+ADR.
+
+### Pushback: §3 and §4 name more artifacts than the project can release
+
+The draft's own Negative section makes the case: no GitHub release has ever
+been cut, the PyPI name is unreachable, `web/package.json` has drifted four
+minors, and the Playwright suite is nondeterministic and non-blocking. Four
+named artifacts plus a published library multiplies every one of those
+problems.
+
+Proposed narrowing:
+
+- **One app for now.** Audience differences are a nav filtered by grants.
+  Per §1 this is a product decision, not enforcement, so it costs nothing in
+  security terms.
+- **Open question 3: vendored.** If a library seam is needed, make it a
+  workspace package with no npm publish. Do not take on npm semver before
+  Python release discipline exists.
+- **Extract the typed `api` + `types` client only when a second consumer
+  actually exists.** The sequencing recommendation in §4 is right about
+  *order*; this adds a trigger.
+- **Gate:** Playwright deterministic and blocking in CI before any new
+  surface ships.
+
+The artifact table in §3 remains useful as a map of where this could go. It
+should not be a work plan yet.
+
+### Open question 4: declarative, proven on `software-kb`
+
+Choose shape 1. Beyond the reasons the draft gives (no compiled JS in
+wheels, no Svelte version matrix, no Node toolchain at install), there is a
+thesis-level reason: the roadmap's BHAG is "the schema is the program." An
+agent that can write a `kb.yaml` can write a view manifest beside it. An
+agent cannot ship a prebuilt Svelte bundle. Shapes 2 and 3 would make UI the
+one part of a self-configured domain that still needs a human with a
+toolchain.
+
+Test of expressiveness, as the draft suggests: a backlog board and an ADR
+list for `software-kb`. If the manifest can express those two, it is
+sufficient for the journalism views already in the backlog (entity profile,
+claims coverage, source management panel). If it cannot, that is learned
+cheaply, before any compatibility promise is made. The scoping lesson from
+`plugin-type-resolution-scoping` applies unchanged: manifests are declared
+per KB type, never a global registry.
+
+### Open questions 1, 5 and 6
+
+1. **Public reader: keep `/site/`.** Do not reopen SSR. ADR-0023 tried it and
+   abandoned it; nothing in this ADR changes that calculus.
+5. **Shared-instance backend: a suggestion, not a position.** The mode-flag
+   objection is about *runtime* state. A separate app factory (a distinct
+   entry point that never imports or constructs `RunService`) is selected by
+   which process is started, not by a setting that can be flipped or
+   compromised. That gives structural absence for the few capabilities where
+   REQ-1 demands it, while grants do the work for everything else. Worth
+   testing against ADR-0030 §4 before adopting.
+6. **Do not block the 0.25 pilot on the frontend split.** Ship the pilot with
+   the existing app, a grant-filtered nav, and a manually scoped credential —
+   *after* the two prerequisite tickets land. The API is the boundary either
+   way; the split buys nothing the pilot needs.
+
+No position offered on open question 2 (BYOK key custody); the review did not
+examine it.
+
+### Proposed sequence
+
+> **Scoping note from the maintainer (2026-09-17):** everything in this ADR
+> and in ADR-0030 is post-0.25. That settles open question 6: 0.25 is the
+> shared-instance pilot on the existing app, behind the two prerequisite
+> tickets. Of the steps below, only step 1 and the prerequisites compete
+> with 0.25 work; steps 2–3 and the ADR-0030 cross-reading are the agenda
+> for what follows it, and step 4 is 0.25 itself rather than last.
+
+1. **Fix what a first-time visitor sees (days).** Observed on
+   demo.pyrite.wiki on 2026-09-17 as an anonymous visitor:
+   - search snippets render literal `<mark>` tags as text alongside the real
+     highlights;
+   - the "Pyrite" wordmark is invisible in light mode;
+   - the sidebar shows 12 flat nav items, including QA, Changes and Settings,
+     to a visitor with no credential;
+   - the sidebar KB selector reads `guide (27)` while the search page reads
+     "All KBs";
+   - `/auth/me` returns 401 into the console on every page load.
+
+   Existing tickets cover the KB-context authority, the sidebar regroup,
+   light mode and graph scoping. Add HTML sanitization of rendered markdown
+   to this batch, and the Playwright gate above.
+2. **The review surface.** Make "what did agents do since I last looked" the
+   home screen: a per-agent, per-commit change feed with diffs; approve and
+   revert; QA warnings inline; the task board showing who claimed what;
+   provenance on each entry page (commit, author, sources). Most of the
+   backend exists. This is also the screen that demonstrates the pitch — a
+   short recording of it is a better product-page hero than a feature grid.
+3. **Type-aware views via the declarative manifest**, `software-kb` first,
+   then the journalism-investigation views.
+4. **Shared instance**, per open question 6 above.
+
+If the investigator pilot has a near date, step 4 moves ahead of step 3 and
+the journalism views come before `software-kb`.
+
+### Read against ADR-0030
+
+The sections above were written before reading ADR-0030, which is where this
+ADR came from. Three things change or sharpen.
+
+**The review surface and ADR-0030's Phase 5 UI are the same product, reached
+from opposite ends.** ADR-0030 wants a surface to run, observe, interrupt and
+review pipeline work. Step 2 above wants a surface to see what agents did and
+accept or revert it. ADR-0030 §6 already says which half is truth:
+checkpoints are the progress spine and the ACP stream is display. So the
+after-the-fact half — claimed tasks, checkpoints, commits, diffs, QA — can be
+built now, on data that exists, with none of ADR-0030's five prerequisites.
+It also works for agents Pyrite did not launch: today's Claude Code
+conductors, and an outside operator's own agents over MCP. Live run control
+(Phases 1–5) later plugs into the same screen rather than arriving as a new
+one. Building it first is also the cheapest test of whether Phase 5 is worth
+its prerequisites.
+
+**One grant model resolves three open items.** ADR-0030 §6 found that
+`task_claim` and `task_checkpoint` are write tier, so a read-tier run cannot
+report progress. [[repo-access-is-a-capability-not-a-tier]] found that repo
+and egress operations do not fit the tier ladder either. §2 of this ADR says
+grants, not modes. These are the same observation: read/write/admin is a
+*content* ladder, and task machinery, repo egress and run execution are
+orthogonal capabilities. A credential — whether a user's API key or a
+per-run MCP session — is then `tier + library + capabilities`. That picks
+the second of ADR-0030 §6's three exits, keeps the read-tier research run
+alive as a concept, and means the shared instance of §3 is expressed as
+"credentials without `repo-egress` or `run-execution`" with no special case.
+It should be designed once, in the capability ticket, not three times.
+
+**Open question 5 has a concrete subject.** The capability the mode-flag
+objection is really about is `RunService`: an ACP client that spawns
+subprocesses with filesystem and terminal access. That is the one thing a
+hosted instance must not merely *deny* but not *contain*. The separate
+app-factory suggestion above is aimed at exactly this, and ADR-0030 §1 makes
+it cheap: run execution is a service with its own router, so a hosted entry
+point that never imports it is a small seam, not a fork.
+
+### Freeze list
+
+Keep, but stop investing in: the dual editor, daily notes, the web clipper,
+gallery views. None is removed; none gets roadmap time until the review
+surface exists.
+
+### Two facts that would change this
+
+- Whether the outside contributor's deployment uses the web UI at all, or
+  only REST and MCP. If the latter, that is direct evidence for the
+  oversight framing and worth asking.
+- The pilot date, per the sequencing note above.
