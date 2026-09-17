@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.24.1] - 2026-09-17
 
-Five months of work across 226 commits (158 substantive, 68 KB/docs), from
+Five months of work across about 250 commits (roughly 175 substantive, 75
+KB/docs), from
 2026-04-06 to 2026-09-17. Versions 0.21–0.24 were tagged without CHANGELOG
 entries; this section covers everything since v0.24.0 and is the first
 release note written since 0.20.0.
@@ -24,8 +25,12 @@ shipped whose defining goal was never attempted.
 pinnable and `publish.yml` had never fired.
 
 **No PyPI wheel.** The `pyrite` name on PyPI is held by a pre-2FA account
-that is locked. Install from source, or
-`pip install git+https://github.com/markramm/pyrite@v0.24.1`.
+that is locked. Install from a source checkout (README Quick Start), or
+`pip install "pyrite[all] @ git+https://github.com/markramm/pyrite@v0.24.1"`.
+The git install gives you the CLI, the REST API and the MCP server, **but no
+web UI**: the built frontend is not packaged yet, and the server does not say
+so (`installable-from-github-with-a-working-web-ui-package-the-built-frontend`).
+For the UI, use a source checkout (`cd web && npm ci && npm run build`) or Docker.
 
 **Frontend caveat.** The Playwright e2e job is currently non-blocking (see
 `playwright-e2e-suite-non-deterministic-failures-likely-shared-state-auth-config-gap`),
