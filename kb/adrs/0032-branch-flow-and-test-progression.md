@@ -3,7 +3,7 @@ id: adr-0032
 type: adr
 title: "Branch flow and test progression: feature branches, green-and-current merges to dev, layered gates to release"
 adr_number: 32
-status: proposed
+status: accepted
 deciders: ["markr"]
 date: "2026-09-17"
 tags: [process, ci, git, release, testing, multi-agent]
@@ -179,16 +179,19 @@ drive the production sites. Version numbers still follow roadmap milestones.
    layout, including the required-check names so a renamed CI job cannot silently
    unprotect a branch.
 
-## Open questions
+## Decisions on the open questions (2026-09-17, markr)
 
-1. **v0.24.1 first, or this first?** Recommendation: release first under today's
-   rules (the fast-forward runbook already satisfies `main`'s side), then migrate.
-   Changing the process and cutting the first public release in one step couples
-   two risks for no gain.
-2. **Does a solo maintainer's PR need a review?** Recommendation: no required
-   reviewers — the required checks are the reviewer of record — but PRs from
-   outside the maintainer's account do require one approval.
-3. **Squash or rebase as the default?** Squash keeps `dev` one-commit-per-batch
-   and makes reverts trivial, but the `fix:`-needs-a-test rule then has to check
-   the PR, not each commit. Rebase keeps fine-grained history. Leaning squash,
-   with the PR title carrying the conventional-commit type.
+1. **Release first, then migrate.** v0.24.1 is cut from current `dev` using the
+   fast-forward runbook (tag a SHA CI already passed; `main` only fast-forwards)
+   with as much of layer 4 as can be run by hand. Branch protection and the
+   feature-branch flow switch on afterwards, once CI is parallel.
+2. **Governance: BDFL.** Mark Ramm is the sole maintainer and has final say on
+   what merges and what ships. The required checks are the reviewer of record for
+   the maintainer's own PRs; PRs from anyone else need the maintainer's approval.
+   Co-maintainers are welcome, by invitation, once there is someone who wants the
+   responsibility and has earned the trust; this ADR's rules apply to them
+   unchanged, which is part of the point of having no maintainer bypass.
+3. **Rebase is the default merge method.** It keeps each commit's message and
+   authorship (and lets the `fix:`-needs-a-test rule keep checking commits), and
+   keeps `dev` linear without merge commits. Squash stays available for a branch
+   whose history is noise. Merge commits are disabled.

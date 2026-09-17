@@ -42,3 +42,14 @@ The entry writer emits exactly one trailing newline.
 - [ ] A freshly created entry passes `pre-commit run end-of-file-fixer` unchanged (test).
 
 Found while writing ADR-0032.
+
+## More instances (CLI probe, 2026-09-17)
+
+- The **MCP tool** has the identical hand-rolled slug:
+  `extensions/software-kb/.../plugin.py:1566` (`title.lower().replace(" ", "-")`),
+  alongside `cli.py:175`.
+- A `/` in the title is worse than a bad filename: `pyrite sw new-adr "Use A/B testing"`
+  dies with an unhandled `FileNotFoundError` for `adrs/0001-use-a/b-testing.md`.
+- Since 2026-09-17 the repository refuses any id or path that would leave the KB
+  (`KBRepository._validate_entry_id` / `_contained`), so these now fail safely — but
+  they should not fail at all. Use `generate_entry_id`.
