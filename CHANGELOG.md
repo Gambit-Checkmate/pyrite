@@ -99,6 +99,14 @@ anonymous/read sessions. Verify the web UI by hand before relying on it.
   - `kb_manage` `discover`; zettelkasten's zettel listing (invalid FTS5 `*`
     query); journalism-investigation cross-KB search on hyphenated queries and
     investigation setup against a missing KB (raw `IntegrityError`)
+- **Creating an entry whose id already exists silently replaced the existing
+  entry** and reported "Created" — on every surface (CLI, REST, MCP, importers).
+  Ids come from titles, so two entries with the same title destroyed the first.
+  Create now refuses; use update to replace.
+- MCP: refused requests (validation, not found, read-only) were reported as
+  `INTERNAL, retryable: true`, inviting agents to retry calls that cannot succeed.
+  They now return stable codes (`VALIDATION_FAILED`, `NOT_FOUND`, `READ_ONLY`, …)
+  with `retryable: false`.
 - `pyrite.__version__` reported `0.12.0`; it now reads the packaged version
 - `LICENSE` was missing a clause of the MIT text and named no copyright holder
   (GitHub showed the license as "Other")
@@ -185,6 +193,11 @@ more than one user, upgrade.**
   unsanitized on the entry page and in daily notes, and an entry title could
   break out of the JSON-LD `<script>` block. Rendered HTML now passes through
   DOMPurify; `<` is escaped in JSON-LD.
+- **Path traversal through entry ids.** An entry id becomes a filename, and the
+  REST import endpoint took `id` from the uploaded file unchecked, so a write-tier
+  caller could write a `.md` file outside the KB directory (`../../x`);
+  `pyrite rename` had the same hole locally. The repository now refuses ids that
+  are not plain filenames and refuses any path that resolves outside the KB root.
 - Web clipper SSRF defense: private, loopback, and link-local IPs blocked
 
 ### Community contributions

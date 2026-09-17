@@ -19,10 +19,13 @@ from pydantic import AnyUrl
 from ..config import PyriteConfig, load_config
 from ..exceptions import (
     ConfigError,
+    EntryNotFoundError,
     KBNotFoundError,
     KBProtectedError,
+    KBReadOnlyError,
     PyriteError,
     QuerySyntaxError,
+    ValidationError,
 )
 from ..schema import generate_entry_id
 from ..services.export_service import ExportService
@@ -111,6 +114,18 @@ def _chunk_body(entry: dict, offset: int = 0, limit: int = DEFAULT_BODY_CHUNK) -
     out["body_offset"] = offset
     out["body_chunk_size"] = len(chunk)
     return out
+
+
+# Most specific first: the dispatcher takes the first isinstance match.
+_DOMAIN_ERROR_CODES: tuple[tuple[type[PyriteError], str], ...] = (
+    (EntryNotFoundError, "NOT_FOUND"),
+    (KBNotFoundError, "NOT_FOUND"),
+    (KBReadOnlyError, "READ_ONLY"),
+    (KBProtectedError, "KB_PROTECTED"),
+    (QuerySyntaxError, "QUERY_SYNTAX"),
+    (ValidationError, "VALIDATION_FAILED"),
+    (ConfigError, "CONFIG_ERROR"),
+)
 
 
 def _error(
@@ -1692,6 +1707,14 @@ class PyriteMCPServer:
         try:
             handler = self.tools[name]["handler"]
             return handler(arguments)
+        except PyriteError as e:
+            # A refused request, not a crash: the service said no for a reason
+            # the caller can act on. Never retryable -- the same call fails the
+            # same way -- and not logged as an exception.
+            code = next(
+                (c for exc, c in _DOMAIN_ERROR_CODES if isinstance(e, exc)), "REQUEST_REFUSED"
+            )
+            return _error(code, str(e))
         except Exception as e:
             logger.exception("Tool %s failed with args %s", name, arguments)
             return _error("INTERNAL", str(e), retryable=True)

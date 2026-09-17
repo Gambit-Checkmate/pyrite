@@ -158,11 +158,43 @@ class KBRepository:
 
         return fm
 
+    @staticmethod
+    def _validate_entry_id(entry_id: str) -> None:
+        """Refuse ids that are not a plain filename stem.
+
+        An id becomes `<id>.md`, and ids arrive from callers: the REST import
+        endpoint reads `id` out of the uploaded file, `pyrite rename` takes it
+        from argv. `../../x` must not be able to name a file outside the KB.
+        """
+        if (
+            not isinstance(entry_id, str)
+            or not entry_id.strip()
+            or entry_id.startswith(".")
+            or any(c in entry_id for c in ("/", "\\", "\x00"))
+        ):
+            raise ValidationError(
+                f"Invalid entry id {entry_id!r}: an id must be a plain filename "
+                "(no path separators, no leading '.', not empty)"
+            )
+
+    def _contained(self, file_path: Path) -> Path:
+        """Return file_path, or raise if it resolves outside the KB root.
+
+        Defence in depth behind _validate_entry_id: subdirectory templates and
+        `file_pattern` filenames are also built from entry data.
+        """
+        root = self.path.resolve()
+        resolved = file_path.resolve()
+        if resolved != root and root not in resolved.parents:
+            raise ValidationError(f"Refusing to write outside KB '{self.name}': {file_path}")
+        return file_path
+
     def _get_file_path(self, entry_id: str, subdir: str | None = None) -> Path:
         """Get file path for an entry."""
+        self._validate_entry_id(entry_id)
         if subdir:
-            return self.path / subdir / f"{entry_id}.md"
-        return self.path / f"{entry_id}.md"
+            return self._contained(self.path / subdir / f"{entry_id}.md")
+        return self._contained(self.path / f"{entry_id}.md")
 
     def _resolve_file_path(self, entry: Entry, subdir: str | None) -> Path:
         """Resolve the file path for an entry, respecting file_pattern if set."""
@@ -173,8 +205,8 @@ class KBRepository:
             if custom_name:
                 # file_pattern provides the full filename (with .md)
                 if subdir:
-                    return self.path / subdir / custom_name
-                return self.path / custom_name
+                    return self._contained(self.path / subdir / custom_name)
+                return self._contained(self.path / custom_name)
         return self._get_file_path(entry.id, subdir)
 
     def _infer_subdir(self, entry: Entry) -> str | None:
@@ -381,6 +413,8 @@ class KBRepository:
             raise KBReadOnlyError(f"KB '{self.name}' is read-only")
 
         # Same-id is a no-op — callers can script rename(x, x) safely.
+        self._validate_entry_id(new_id)
+
         if old_id == new_id:
             return {
                 "renamed": False,

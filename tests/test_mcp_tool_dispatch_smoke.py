@@ -94,3 +94,18 @@ def test_every_tool_dispatches_without_an_unhandled_exception(server):
 def test_skip_table_has_no_stale_entries(server):
     stale = sorted(set(SKIP) - set(server.tools))
     assert not stale, f"SKIP names tools that are no longer registered: {stale}"
+
+
+def test_domain_errors_are_not_reported_as_retryable_internal_errors(server):
+    """A refused request is not a crash, and must not invite a retry.
+
+    The dispatcher used to turn every exception into `INTERNAL, retryable: true`.
+    For a validation failure that tells an agent to repeat a call that can never
+    succeed.
+    """
+    args = {"kb_name": "test-events", "title": "dispatch-collision-probe"}
+    first = server._dispatch_tool("task_create", args, client_id="stdio")
+    assert "error" not in first, first
+    second = server._dispatch_tool("task_create", args, client_id="stdio")
+    assert second.get("error_code") == "VALIDATION_FAILED", second
+    assert second.get("retryable") is False

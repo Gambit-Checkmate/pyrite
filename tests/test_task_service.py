@@ -1,5 +1,6 @@
 """Tests for TaskService — operative task operations."""
 
+import uuid
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -265,7 +266,10 @@ class TestResetTask:
     path) without the lossy `blocked` + clear-assignee workaround
     (add-task-reset-command-for-stale-claims)."""
 
-    def _to_in_progress(self, svc, title="Stale task", assignee="agent:dead"):
+    def _to_in_progress(self, svc, title=None, assignee="agent:dead"):
+        # Unique per call: task_env is shared across this class, and create no
+        # longer silently replaces an entry with the same title-derived id.
+        title = title or f"Stale task {uuid.uuid4().hex[:8]}"
         created = svc.create_task(kb_name="test-tasks", title=title)
         eid = created["entry_id"]
         svc.update_task(eid, "test-tasks", status="claimed", assignee=assignee)

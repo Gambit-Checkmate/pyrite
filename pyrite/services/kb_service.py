@@ -275,6 +275,15 @@ class KBService:
         if errors:
             raise ValidationError("; ".join(errors))
 
+        # Create never replaces. Ids are derived from titles, so two entries
+        # sharing a title is ordinary -- and used to destroy the first one while
+        # reporting "Created". Callers that mean to replace use update_entry.
+        if KBRepository(kb_config).exists(entry.id):
+            raise ValidationError(
+                f"Entry with ID '{entry.id}' already exists in KB '{kb_name}'. "
+                "Use update to change it, or choose a different title/id."
+            )
+
         # Run before_save hooks
         hook_ctx = PluginContext(
             config=self.config,
