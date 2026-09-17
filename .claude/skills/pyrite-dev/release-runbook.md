@@ -11,23 +11,51 @@ Procedural reference for the `dev → main` release path and the deploy script. 
 
 Only merge `dev` → `main` when the user explicitly asks to release.
 
+**The rule: the commit that gets tagged is a commit CI already passed.** All
+release edits happen on `dev`; `main` only ever fast-forwards. Never commit on
+`main` (a version bump there is an untested commit, and it makes `main` diverge
+from `dev` so the next release needs a real merge).
+
 ```bash
-# 1. Ensure CI is green on dev
-# 2. Merge to main
-git checkout main
-git merge dev
-# 3. Update version in pyproject.toml (remove .dev0 suffix)
-# 4. Commit version bump
-# 5. Tag
-git tag -a v0.X.0 -m "v0.X.0: summary"
-git push && git push --tags
-# 6. Create GitHub release (does NOT publish to PyPI -- see note below)
-# 7. Switch back to dev and bump to next dev version
+# --- on dev -----------------------------------------------------------------
+# 1. Release edits, in one commit:
+#    - pyproject.toml `version` (the ONLY place it is written;
+#      pyrite.__version__ reads it, tests/test_version_consistency.py checks it)
+#    - CHANGELOG.md: date the section being released, `## [X.Y.Z] - YYYY-MM-DD`
+#    - SECURITY.md supported-versions table, if the minor changed
+git commit -m "release: prepare vX.Y.Z" -- pyproject.toml CHANGELOG.md
+git push origin dev          # pre-push runs the full suite (~8 min)
+
+# 2. Wait for CI on THAT commit. `test (3.12)` is the required check on main.
+gh run list --branch dev --limit 1
+SHA=$(git rev-parse dev)
+
+# --- fast-forward main, tag, release ----------------------------------------
+# 3. Fast-forward only. If this refuses, main has commits dev lacks: stop and
+#    find out why (a hotfix that was never merged back?) before going further.
+git checkout main && git pull --ff-only
+git merge --ff-only "$SHA"
+git tag -a vX.Y.Z -m "vX.Y.Z: one-line summary" "$SHA"
+git push origin main && git push origin vX.Y.Z
+
+# 4. GitHub release, notes taken from the CHANGELOG section
+#    (does NOT publish to PyPI -- see note below)
+gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <(sed -n '/^## \[X.Y.Z\]/,/^## \[/p' CHANGELOG.md | sed '$d')
+
+# 5. Verify what users will actually get, in a throwaway venv
+python -m venv /tmp/relcheck && /tmp/relcheck/bin/pip install -q \
+  "pyrite[all] @ git+https://github.com/markramm/pyrite@vX.Y.Z"
+/tmp/relcheck/bin/python -c "import pyrite; print(pyrite.__version__)"   # X.Y.Z
+
+# --- back on dev ------------------------------------------------------------
+# 6. Open the next cycle: add an empty `## [Unreleased]` section at the top of
+#    CHANGELOG.md so new entries stop landing in a version that is already cut.
 git checkout dev
-# Edit pyproject.toml to 0.X+1.0.dev0
-git commit -am "Bump version to 0.X+1.0.dev0"
-git push
 ```
+
+Version numbers follow the roadmap, not the calendar: a minor (0.25) names a
+milestone with a definition of done. Do not tag it until that is met; ship
+fixes as patch releases of the current minor meanwhile.
 
 **PyPI**: not reachable. The `pyrite` name is held by a locked pre-2FA account (ADR-0025, amended 2026-09-17), so `publish.yml` is `workflow_dispatch`-only and a GitHub release publishes nothing. Install path is `pip install git+https://github.com/markramm/pyrite@<tag>`.
 
@@ -58,9 +86,14 @@ Use the deployment script at `pyrite_deployments/deploy.sh` (gitignored, local o
 
 For urgent fixes to a release:
 
-1. Cherry-pick the fix from `dev` to `main`
-2. Bump patch version, tag (e.g., `v0.21.1`)
-3. Deploy
+Prefer a normal patch release (above): if `dev` is releasable, fast-forward it.
+Only when `dev` carries work that must not ship yet:
+
+1. Branch `hotfix/vX.Y.Z` from the release tag, cherry-pick the fix from `dev`,
+   bump the patch version and CHANGELOG there, push, and wait for CI.
+2. Fast-forward `main` to the hotfix branch, tag, release, deploy.
+3. Merge `main` back into `dev` immediately, so `main` is an ancestor of `dev`
+   again and the next release can fast-forward.
 
 ## Site mapping (which branch lands where)
 
