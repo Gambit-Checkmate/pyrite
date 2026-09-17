@@ -331,6 +331,15 @@ class BaseBackend(ABC):
         # entry["metadata"]["status_reason"].
         if "status_reason" in metadata and "status_reason" not in result:
             result["status_reason"] = metadata["status_reason"]
+        # parked_awaiting is the conductor/dispatch-classifier convention for
+        # marking a task legitimately waiting rather than stalled (not a
+        # schema field on TaskEntry — it now round-trips into metadata via
+        # TaskEntry's unknown-frontmatter-key preservation). Lift here so
+        # TaskService.list_tasks()'s hydration path (which reads
+        # entry.get("parked_awaiting") directly) sees it.
+        # See: issue-pyrite-task-update-strips-non-schema-frontmatter-fields-silently-unparks-monitors
+        if "parked_awaiting" in metadata and "parked_awaiting" not in result:
+            result["parked_awaiting"] = metadata["parked_awaiting"]
         return result
 
     def _get_entry_tags(self, entry_id: str, kb_name: str) -> list[str]:

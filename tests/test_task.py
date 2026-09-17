@@ -170,6 +170,79 @@ class TestTaskEntry:
         assert "Build the API." in md
 
 
+class TestTaskEntryUnknownFrontmatterKeys:
+    """Regression coverage for
+    issue-pyrite-task-update-strips-non-schema-frontmatter-fields-silently-unparks-monitors.
+
+    A top-level frontmatter key TaskEntry doesn't declare as a schema field
+    (e.g. `parked_awaiting:`, the conductor's parked-monitor convention) must
+    survive a load -> save round trip rather than being silently dropped.
+    """
+
+    def test_from_frontmatter_collects_unknown_key_into_metadata(self):
+        meta = {
+            "id": "task-003",
+            "title": "Monitor task",
+            "type": "task",
+            "status": "in_progress",
+            "parked_awaiting": "2026-09-11",
+        }
+        entry = TaskEntry.from_frontmatter(meta, "")
+        assert entry.metadata.get("parked_awaiting") == "2026-09-11"
+
+    def test_to_frontmatter_promotes_unknown_key_to_top_level(self):
+        entry = TaskEntry(
+            id="task-003",
+            title="Monitor task",
+            status="in_progress",
+            metadata={"parked_awaiting": "2026-09-11"},
+        )
+        fm = entry.to_frontmatter()
+        assert fm.get("parked_awaiting") == "2026-09-11"
+        # Promoted to top level, not left nested under metadata: — this is
+        # the shape the conductor's dispatch classifier greps for
+        # (`^parked_awaiting:` in the file body).
+        assert "metadata" not in fm
+
+    def test_parked_awaiting_survives_load_mutate_save_roundtrip(self):
+        """The exact failure mode reported: task claim / task update -s
+        rewrite the file's frontmatter via load -> mutate -> save, and the
+        unknown key must still be present afterward."""
+        meta = {
+            "id": "task-003",
+            "title": "Monitor task",
+            "type": "task",
+            "status": "open",
+            "parked_awaiting": "waiting-on-rfp-deadline",
+        }
+        entry = TaskEntry.from_frontmatter(meta, "body")
+        # Simulate a claim/update: mutate a known field, then re-serialize —
+        # mirrors KBService.update_entry's load -> setattr -> save_entry.
+        entry.status = "claimed"
+        entry.assignee = "agent:test"
+        fm = entry.to_frontmatter()
+        assert fm["status"] == "claimed"
+        assert fm["assignee"] == "agent:test"
+        assert fm["parked_awaiting"] == "waiting-on-rfp-deadline"
+
+    def test_explicit_nested_metadata_block_still_round_trips(self):
+        """Legacy nested `metadata:` block (rare but present in some KB
+        files) should still load correctly; its keys get promoted to
+        top-level on the next save, matching GenericEntry's existing
+        behavior for kb.yaml custom types."""
+        meta = {
+            "id": "task-004",
+            "title": "Legacy metadata task",
+            "type": "task",
+            "status": "open",
+            "metadata": {"custom_field": "hello"},
+        }
+        entry = TaskEntry.from_frontmatter(meta, "")
+        assert entry.metadata.get("custom_field") == "hello"
+        fm = entry.to_frontmatter()
+        assert fm.get("custom_field") == "hello"
+
+
 # =========================================================================
 # Workflows
 # =========================================================================

@@ -293,10 +293,14 @@ class TaskService:
                     # vocabulary (browser-session / decision / foia-response /
                     # outreach / external-clock).
                     #
-                    # The index does not persist non-schema frontmatter into
-                    # `metadata`, so this is usually empty here and gets
-                    # hydrated from the entry below. Reading metadata first
-                    # keeps the field working if that ever changes.
+                    # TaskEntry now preserves unknown top-level frontmatter
+                    # keys (like this one) into entry.metadata on load/save,
+                    # so this reads correctly off the raw DB row for tasks
+                    # saved since that fix. Older rows saved before the fix
+                    # (or entries whose metadata JSON predates a reindex)
+                    # still fall through to the hydration pass below, which
+                    # reads the file directly and stays as a safety net.
+                    # See: issue-pyrite-task-update-strips-non-schema-frontmatter-fields-silently-unparks-monitors
                     "parked_awaiting": meta.get("parked_awaiting", ""),
                     "updated_at": row.get("updated_at") or "",
                 }

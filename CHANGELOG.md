@@ -104,6 +104,11 @@ anonymous/read sessions. Verify the web UI by hand before relying on it.
   - Deliberate subdirectory preserved on update instead of relocating to the
     type default
   - `EventEntry` serializes `actors`, not `participants`
+  - `TaskEntry` preserves unknown top-level frontmatter keys across
+    load → save. `task claim` / `task update -s` were silently stripping
+    conventions like `parked_awaiting:`, turning parked monitors into
+    apparently stalled work. `NoteEntry` and `CollectionEntry` still drop
+    them (`core-types-silently-drop-unknown-frontmatter-keys`, open)
 - **Fail-closed / error handling**
   - Auth fails closed on undecryptable GitHub tokens and API keys
   - Plugin KB-type compatibility check fails closed

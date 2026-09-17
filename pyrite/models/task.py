@@ -9,6 +9,46 @@ from .base import parse_datetime, parse_links, parse_sources
 from .core_types import NoteEntry
 from .protocols import Assignable, Parentable, Prioritizable, Statusable, Temporal
 
+# Frontmatter keys TaskEntry knows how to round-trip explicitly (base Entry
+# fields + task-specific fields below). Anything else present in a task
+# file's frontmatter — e.g. the `parked_awaiting:` convention used by the
+# conductor/dispatch pipeline, which is not (and should not have to be) a
+# schema field — is preserved via `metadata` instead of silently dropped on
+# load/save. Mirrors the same pattern already used by GenericEntry for
+# kb.yaml custom types (see models/generic.py::_KNOWN_KEYS); TaskEntry is a
+# core type with its own dataclass, so it needs its own copy of the pattern.
+# See: issue-pyrite-task-update-strips-non-schema-frontmatter-fields-silently-unparks-monitors
+_TASK_KNOWN_KEYS = {
+    "id",
+    "title",
+    "type",
+    "body",
+    "summary",
+    "tags",
+    "aliases",
+    "sources",
+    "links",
+    "provenance",
+    "metadata",
+    "created_at",
+    "updated_at",
+    "_schema_version",
+    "file_path",
+    "importance",
+    "lifecycle",
+    "status",
+    "status_reason",
+    "assignee",
+    "parent",
+    "parent_task",
+    "dependencies",
+    "evidence",
+    "priority",
+    "due_date",
+    "agent_context",
+    "status_change_log",
+}
+
 TASK_STATUSES = (
     "open",
     "claimed",
@@ -428,6 +468,18 @@ class TaskEntry(Assignable, Temporal, Statusable, Prioritizable, Parentable, Not
             meta["agent_context"] = self.agent_context
         if self.status_change_log:
             meta["status_change_log"] = self.status_change_log
+        # Round-trip any unrecognized frontmatter keys (e.g. parked_awaiting)
+        # collected into self.metadata at load time. Promoted to top-level
+        # keys — not left nested under a `metadata:` block — so the on-disk
+        # shape matches what was written and what the conductor's dispatch
+        # classifier greps for (`^parked_awaiting:` in the file body).
+        # super().to_frontmatter() may have already emitted a nested
+        # `metadata:` block (base Entry behavior); drop it once its contents
+        # are promoted to top level to avoid writing the same data twice.
+        for key, value in self.metadata.items():
+            if key not in meta:
+                meta[key] = value
+        meta.pop("metadata", None)
         return meta
 
     @classmethod
@@ -435,6 +487,12 @@ class TaskEntry(Assignable, Temporal, Statusable, Prioritizable, Parentable, Not
         kwargs = _note_base_kwargs(meta, body)
         # Accept both "parent" and legacy "parent_task"
         parent = meta.get("parent", "") or meta.get("parent_task", "")
+        # Collect any top-level frontmatter keys this schema doesn't know
+        # about into metadata, so a round-trip load->save doesn't drop them.
+        # Explicit nested `metadata:` block (rare) wins on key collision.
+        explicit_metadata = meta.get("metadata", {}) or {}
+        extra_metadata = {k: v for k, v in meta.items() if k not in _TASK_KNOWN_KEYS}
+        kwargs["metadata"] = {**extra_metadata, **explicit_metadata}
         return cls(
             **kwargs,
             status=meta.get("status", "open"),

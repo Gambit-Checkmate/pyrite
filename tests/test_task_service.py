@@ -618,6 +618,59 @@ class TestListTasks:
         titles = [t["title"] for t in assigned]
         assert "Assigned" in titles
 
+    def test_parked_awaiting_survives_claim_and_surfaces_in_listing(self, task_env):
+        """Regression for
+        issue-pyrite-task-update-strips-non-schema-frontmatter-fields-silently-unparks-monitors.
+
+        `parked_awaiting:` is not a TaskEntry schema field — it's a
+        convention the conductor/dispatch pipeline reads out of frontmatter
+        directly. Simulates the exact reported failure: a worker hand-adds
+        `parked_awaiting:` to a task file, then a CLI call (`task claim`,
+        which round-trips the file through TaskEntry.from_frontmatter ->
+        mutate -> to_frontmatter) must not drop it — and once present, both
+        the unfiltered and assignee-filtered `list_tasks` paths must surface
+        it (write-path and read-path bugs respectively).
+        """
+        svc = task_env["svc"]
+        kb_config = task_env["kb_config"]
+
+        created = svc.create_task(kb_name="test-tasks", title="Monitor: RFP deadline")
+        entry_id = created["entry_id"]
+
+        # Simulate a worker hand-editing the file to add parked_awaiting,
+        # the way the human-task / monitor convention requires (no CLI
+        # flag exists for this field).
+        repo = KBRepository(kb_config)
+        entry = repo.load(entry_id)
+        entry.metadata["parked_awaiting"] = "rfp-due-2026-09-11"
+        repo.save(entry)
+
+        # This is the exact call the ticket reports as lossy.
+        svc.claim_task(entry_id, "test-tasks", "agent:regression-test")
+
+        # Write path: the field must still be on disk after claim.
+        reloaded = repo.load(entry_id)
+        assert reloaded.metadata.get("parked_awaiting") == "rfp-due-2026-09-11", (
+            "task claim dropped parked_awaiting from the file's frontmatter"
+        )
+
+        # Read path: list_tasks (unfiltered — no assignee, no N+1 hydration)
+        # must surface it directly off the indexed metadata.
+        unfiltered = {t["id"]: t for t in svc.list_tasks(kb_name="test-tasks")}
+        assert unfiltered[entry_id]["parked_awaiting"] == "rfp-due-2026-09-11", (
+            "list_tasks (unfiltered) did not surface parked_awaiting from the index"
+        )
+
+        # Read path: assignee-filtered listing (the hydration path) must
+        # also surface it.
+        filtered = {
+            t["id"]: t
+            for t in svc.list_tasks(kb_name="test-tasks", assignee="agent:regression-test")
+        }
+        assert filtered[entry_id]["parked_awaiting"] == "rfp-due-2026-09-11", (
+            "list_tasks (assignee-filtered) did not surface parked_awaiting"
+        )
+
 
 # =========================================================================
 # Migration: pyrite task migrate-relaxed-mode — Tier A r1175 fire 3/4
