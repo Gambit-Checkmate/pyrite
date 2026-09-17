@@ -55,21 +55,95 @@ CLI/MCP agents.
 
 ## Fix
 
-1. Wire the existing KB-type scoping into entry-type resolution:
+1. ~~Wire the existing KB-type scoping into entry-type resolution:
    a plugin's type remaps apply only in KBs whose kb_type the plugin
-   declares. Core type names resolve to core classes everywhere else.
+   declares. Core type names resolve to core classes everywhere else.~~
+   **DONE 2026-09-17 (2452cf2).** See Progress below.
 2. Deterministic conflict handling: two plugins claiming the same
    type name in the same scope = hard error at load, not
-   last-writer-wins WARN.
+   last-writer-wins WARN. **STILL OPEN** — `_merge_dict`
+   (registry.py:199-210) is unchanged; resolution is now deterministic
+   *within* a scope, but a genuine same-scope collision still resolves
+   silently instead of failing loudly.
 3. Move `_UPDATE_FIELDS` extension vocabulary behind a plugin
    contribution (plugins declare their updatable fields).
+   **STILL OPEN** — `sender`, `funder`, `claim_status` still leak into
+   core at mcp_server.py:35-77.
 4. (Stretch / may split) Narrow PluginContext: schema-scoped DDL,
    and route extension writes through KBService so hooks/validators
-   always run.
+   always run. **STILL OPEN.**
+
+## Progress — item 1 done (2026-09-17, commit 2452cf2)
+
+Forced by CI rather than chosen: two journalism-investigation tests
+failed on GitHub runners while the full suite passed locally 4013/4013,
+twice. Root cause was this ticket's bug, in a sharper form than the
+original write-up describes.
+
+**The nondeterminism is per-machine, not per-run.** `_aggregate_dict`
+iterates `self._plugins.values()`, ordered by entry-point discovery,
+which follows `importlib.metadata`'s site-packages enumeration. Both
+cascade's `actor` and social's `user_profile` subclass `PersonEntry`, so
+`person` resolved to `actor` on this laptop (cascade discovered first)
+and `user_profile` on the Ubuntu runner. Same code, same test, different
+host — and the wrong type written silently to disk. No amount of local
+re-running surfaces it; it is an install-time coin flip, not a flake.
+
+**What shipped:**
+
+- `Registry._aggregate_dict_for_kb()` + `get_all_entry_types_for_kb()`,
+  completing the KB-type-scoped aggregation family. The list and
+  dict-of-lists variants and `_plugin_matches_kb_type` already existed
+  (the fail-closed decision above is live); only the plain-dict variant
+  was missing, which is exactly why entry types were the one unscoped
+  consumer.
+- `_resolve_entry_type(entry_type, kb_type="")`; both `KBService` call
+  sites (`create_entry`, batch create) pass `kb_config.kb_type`.
+- Tiebreak is **most-derived-class (longest MRO)**, name as final
+  tiebreak. A first draft used `sorted()` — deterministic but arbitrary,
+  and it picks `cascade_event` over `timeline_event`, which would have
+  silently changed the type of every new entry in the 5,505-entry
+  cascade-timeline KB. Caught pre-commit by an explicit regression check
+  on that path. MRO depth is principled: `TimelineEventEntry ->
+  InvestigationEventEntry -> EventEntry` is strictly more specific than
+  a direct `EventEntry` subclass.
+
+**Verified resolution matrix:**
+
+| KB type | requested | resolves to |
+|---|---|---|
+| cascade-timeline | event | timeline_event (production path intact) |
+| cascade-timeline | person | actor |
+| known-entities | person | **person** (was `user_profile` in CI) |
+| known-entities | event | investigation_event |
+| social | person | user_profile |
+| generic | person / event | unchanged |
+
+Full suite 4013 passed / 0 failed, identical to baseline; extensions +
+plugin/service suites 1088 passed.
+
+**An empty `kb_type` still matches every plugin**, preserving prior
+global behavior for callers with no KB in hand. That is a deliberate
+compatibility seam, and it is also the remaining hole: any future caller
+that forgets to pass `kb_type` silently gets the old order-dependent
+behavior back. Worth a follow-up making `kb_type` required once all
+callers are known.
 
 ## Acceptance criteria
 
-- A generic research KB with all 6 extensions installed:
-  `create_entry --type person` yields `person`, and the
-  getting-started tutorial passes `index health` clean.
-- Load-time hard error test for same-scope type conflicts.
+- [x] A generic research KB with all 6 extensions installed:
+  `create_entry --type person` yields `person`. Verified directly
+  (`generic` and `known-entities` both resolve `person` -> `person`).
+- [ ] The getting-started tutorial passes `index health` clean —
+  not re-run since the fix; [[ci-run-getting-started-tutorial]] would
+  make this continuously verified rather than a one-off check.
+- [ ] Load-time hard error test for same-scope type conflicts (item 2).
+
+## Why this stays open
+
+Item 1 was the blast radius; items 2-4 are the rest of the surface the
+2026-07-03 audit found. Closing the ticket now would lose them. The
+0.25 deferral rationale ("the pilot ships with first-party extensions
+only") has also expired for CI purposes: CI installs all six extensions
+on every run as of the same day's workflow repair, which is what made
+this reproducible at all.
