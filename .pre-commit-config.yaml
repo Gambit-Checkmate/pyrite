@@ -1,6 +1,26 @@
-# Pre-commit hooks for Pyrite
-# Install: pre-commit install
-# Run manually: pre-commit run --all-files
+# Git hooks for Pyrite
+#
+#   Install:       pre-commit install      (installs all three hook types below)
+#   Run manually:  pre-commit run --all-files
+#                  pre-commit run --hook-stage pre-push --all-files
+#
+# What runs where, and why:
+#
+#   commit     fast checks only (seconds): ruff, file hygiene, import cycles,
+#              KB schema validation. No pytest.
+#   commit-msg `fix:` commits must touch tests/.
+#   pre-push   the full test suite, only when the pushed range touches code.
+#   CI         the authority. Full suite + everything above, on every push and PR.
+#
+# The commit stage must stay fast because pre-commit stashes EVERY unstaged edit
+# in the working tree while commit hooks run. Several sessions share this tree
+# (see CLAUDE.md, "Multi-Session Git Hazard"); a multi-minute commit hook makes
+# other sessions' edits disappear for minutes, and one session's untracked RED
+# test blocks everyone's commits. tests/test_dev_process_config.py pins this
+# layout -- change both together.
+
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
 
 repos:
   # Ruff - fast Python linter and formatter
@@ -33,30 +53,34 @@ repos:
   #     - id: mypy
   #       additional_dependencies: [types-PyYAML]
 
-# Run pytest on commit (local hook)
+  # Local hooks. They prefer the repo's .venv but fall back to whatever
+  # `python` / `pyrite` is on PATH, so they work from a non-activated shell
+  # (agents), a differently named venv, or Windows Git Bash.
   - repo: local
     hooks:
       - id: import-cycle-check
         name: Check for circular imports
-        entry: bash -c 'source .venv/bin/activate && python scripts/check_import_cycles.py'
+        entry: bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY=python; exec "$PY" scripts/check_import_cycles.py'
         language: system
         pass_filenames: false
         files: '\.py$'
       - id: pyrite-schema-validate
         name: Validate KB entries
-        entry: bash -c 'source .venv/bin/activate && pyrite schema validate --changed'
+        entry: bash -c 'P=.venv/bin/pyrite; [ -x "$P" ] || P=pyrite; exec "$P" schema validate --changed'
         language: system
         pass_filenames: false
         stages: [pre-commit]
-      - id: pytest-check
-        name: pytest quick check
-        entry: bash -c 'source .venv/bin/activate && python -m pytest tests/ -x -q --tb=no 2>/dev/null || (echo "Tests failed! Run pytest for details." && exit 1)'
+      - id: pytest-full
+        name: pytest full suite (pre-push, code changes only)
+        entry: bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY=python; exec "$PY" -m pytest tests/ -x -q --tb=short'
         language: system
         pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
+        # Matched against the files changed in the pushed range: a docs- or
+        # KB-only push skips the suite. CI still runs it.
+        files: '(\.py$|(^|/)pyproject\.toml$|^kb/kb\.yaml$|^\.pre-commit-config\.yaml$|^\.github/workflows/)'
+        stages: [pre-push]
       - id: fix-commit-has-tests
         name: "fix: commits must touch tests/"
-        entry: bash -c 'source .venv/bin/activate && python scripts/check_fix_commit_has_tests.py "$1"' --
+        entry: bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY=python; exec "$PY" scripts/check_fix_commit_has_tests.py "$1"' --
         language: system
         stages: [commit-msg]

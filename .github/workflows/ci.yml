@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, dev]
 
+# A newer push to the same ref makes the older run's answer irrelevant. CI is
+# the gate (the full suite no longer runs at commit time -- see
+# .pre-commit-config.yaml), so it has to answer quickly, not queue behind
+# superseded runs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -48,16 +56,17 @@ jobs:
         # [dev,postgres] left 70 test modules failing at COLLECTION with
         # ModuleNotFoundError (typer, bcrypt) on all three Python versions,
         # while pip still exited 0 so the install step reported success.
-        # `.[all]` is what test-optional-deps already installs; match it.
+        # `.[all]` is the whole optional surface (API, MCP, CLI, AI).
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[all,postgres]"
           # Extensions are separate distributions, covered by NO pyrite extra.
           # Without this loop 37 test modules fail at collection with
           # ModuleNotFoundError (pyrite_journalism_investigation,
-          # pyrite_cascade, pyrite_encyclopedia). test-optional-deps has always
-          # installed them this way; the matrix job never did, which is why the
-          # two jobs collected different test counts (3014 vs 3983).
+          # pyrite_cascade, pyrite_encyclopedia). With [all] plus this loop the
+          # matrix job collects the full suite, which is why the old
+          # `test-optional-deps` job (same install, 3.12 only) was removed as a
+          # pure duplicate.
           for ext in extensions/*/; do
             if [ -f "$ext/pyproject.toml" ]; then
               pip install -e "$ext"
@@ -68,6 +77,14 @@ jobs:
         run: |
           ruff check pyrite/ tests/
           ruff format --check pyrite/ tests/
+
+      # The local commit hooks, re-run here: outside contributors' PRs never
+      # run local hooks, and hooks can be skipped with --no-verify. CI can't.
+      - name: Check for circular imports
+        run: python scripts/check_import_cycles.py
+
+      - name: Validate KB entries
+        run: pyrite schema validate kb/
 
       - name: Type check with mypy
         continue-on-error: true
@@ -86,30 +103,6 @@ jobs:
           pytest --cov=pyrite --cov-report=term-missing
           -W "error::DeprecationWarning:pyrite"
           -W "error::DeprecationWarning:tests"
-
-  test-optional-deps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install all dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all]"
-          # Install extensions in dev mode
-          for ext in extensions/*/; do
-            if [ -f "$ext/pyproject.toml" ]; then
-              pip install -e "$ext"
-            fi
-          done
-
-      - name: Run full test suite (including API/MCP tests)
-        run: pytest --cov=pyrite --cov-report=term-missing
 
   # ===========================================================================
   # Frontend: unit tests + svelte-check + build. Fast (~1 min); runs in

@@ -38,7 +38,7 @@ Thinking "skip this just once"? That's rationalization. These exist because skip
 
 ### Committing
 
-Commit early and often to `dev`. The pre-commit hooks (ruff, tests) run automatically. Small, focused commits are better than large batches.
+Commit early and often to `dev`. Commit hooks are fast checks only (ruff, import cycles, KB schema); the full suite runs at pre-push and in CI — see CLAUDE.md, "Pre-commit Hooks". Small, focused commits are better than large batches.
 
 ### Releasing & Deploying
 

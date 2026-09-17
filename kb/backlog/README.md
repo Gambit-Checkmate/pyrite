@@ -1,3 +1,8 @@
+---
+type: note
+title: "Pyrite Backlog"
+tags: [backlog, process]
+---
 # Pyrite Backlog
 
 Features, improvements, and bugs for Pyrite. The backlog is queried through
