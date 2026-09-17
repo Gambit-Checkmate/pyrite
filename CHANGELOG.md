@@ -5,16 +5,33 @@ All notable changes to Pyrite will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.25.0] - UNRELEASED (draft — see "Release checklist" at the end of this section)
+## [0.24.1] - 2026-09-17
 
 Five months of work across 226 commits (158 substantive, 68 KB/docs), from
 2026-04-06 to 2026-09-17. Versions 0.21–0.24 were tagged without CHANGELOG
 entries; this section covers everything since v0.24.0 and is the first
 release note written since 0.20.0.
 
+**Why 0.24.1 and not 0.25.0.** The roadmap defines 0.25 as "Field Hardening &
+Shared-Instance Pilot," whose definition of done is *one peer, logged in,
+searching the corpus read-only for two weeks with zero operator
+interventions.* That has not happened: the epic stands at 7 of 17 subtasks,
+with the entire web-UX workstream still open. This release is the accumulated
+hardening work, not that milestone. Calling it 0.25.0 would mark a milestone
+shipped whose defining goal was never attempted.
+
+**First GitHub release.** None existed before this tag, so nothing was
+pinnable and `publish.yml` had never fired.
+
 **No PyPI wheel.** The `pyrite` name on PyPI is held by a pre-2FA account
-that is locked; `publish.yml` has never fired and no GitHub release exists.
-Install from source or, once tagged, `pip install git+https://github.com/markramm/pyrite@v0.25.0`.
+that is locked. Install from source, or
+`pip install git+https://github.com/markramm/pyrite@v0.24.1`.
+
+**Frontend caveat.** The Playwright e2e job is currently non-blocking (see
+`playwright-e2e-suite-non-deterministic-failures-likely-shared-state-auth-config-gap`),
+so CI green means the backend is green. `web-search-results-never-render` is
+open and describes the search page showing permanent skeletons for
+anonymous/read sessions. Verify the web UI by hand before relying on it.
 
 ### Highlights
 
@@ -143,23 +160,37 @@ First outside PRs to the project, all from **Ruslan Terekhov (@AsyncLegs)**:
   `PYRITE_PREWARM_EMBEDDINGS=true`; `/health`'s `embeddings.ready` stayed
   permanently false
 
-### Release checklist (before tagging)
+### Known gaps at this release
 
-- [ ] CI green on `dev` — first green run required; see below
-- [ ] Reconcile the `[Unreleased]` section below: it describes static-site
-      and web-UI work that may predate v0.24.0. Merge what shipped in this
-      cycle into the sections above and delete the rest, or retitle it if it
-      is genuinely unreleased.
-- [ ] Bump `version` in `pyproject.toml` from 0.24.0 to 0.25.0
-- [ ] Tag `v0.25.0` and create the **GitHub release** (none exist; this is
-      both the `publish.yml` trigger and the only artifact anyone can pin to)
-- [ ] Update `pyrite-website` install instructions to reference the tag
-      rather than bare `main`
-- [ ] Correct the stale PyPI claims in `kb/designs/launch-staging.md:32`
-      (currently ticked `[x] pip install pyrite works`),
-      `launch-channels.md`, and `bhag-self-configuring-knowledge-infrastructure.md`
+- The former `[Unreleased]` section is now retitled `[0.21.0 – 0.24.0]`: its
+  contents all date to 2026-03-23 → 2026-03-26 and shipped in those tags,
+  which were cut without CHANGELOG entries. It is not split per-tag, because
+  the four versions were cut within days of each other and the log does not
+  cleanly attribute features to individual tags.
+- `web/package.json` is stranded at `0.20.0`, four minors behind the Python
+  package. Whether the frontend versions independently is an open question
+  under ADR-0031 (`pyrite-core-ui` as an addressable package), so it was not
+  bumped blindly here.
+- Stale PyPI claims remain in `kb/designs/launch-staging.md:32` (ticked
+  `[x] pip install pyrite works`), `launch-channels.md`, and
+  `bhag-self-configuring-knowledge-infrastructure.md`. They describe a path
+  that the locked account makes unreachable.
 
-## [Unreleased]
+## [0.21.0 – 0.24.0] - 2026-03-23 → 2026-04-06
+
+Reconciled 2026-09-17. This content was written by `ab0707c` ("Document all
+post-0.20.0 work in CHANGELOG", 2026-03-26) and sat under `[Unreleased]`
+because 0.21.0 through 0.24.0 were tagged without CHANGELOG entries. Every
+item below dates to 2026-03-23 → 2026-03-26 and therefore shipped in those
+tags; it was never pending work.
+
+Not split per-tag: the four versions were cut within days of each other and
+the commit log does not cleanly attribute these features to individual tags.
+
+**Note on the `/site/` cache:** this section records *building* it. The
+0.24.1 cycle *deprecated* the static renderer path in favour of custom Hugo
+sites (`12d5660`, `3d1d1e1`, 2026-04-23). Both are accurate; they are
+different events five months apart.
 
 ### Added
 
