@@ -183,7 +183,8 @@ class KBRepository:
         Checks (in order):
         1. KB schema (kb.yaml types with subdirectory)
         2. Core types (built-in type → subdirectory mapping)
-        3. Plugin subtypes (walk MRO to find parent core type)
+        3. Plugin KB presets (the owning plugin's default for the type)
+        4. Plugin subtypes (walk MRO to find parent core type)
         """
         entry_type = entry.entry_type
 
@@ -200,6 +201,17 @@ class KBRepository:
         # Check core types for subdirectory mapping
         if entry_type in CORE_TYPES:
             return CORE_TYPES[entry_type].get("subdirectory")
+
+        # Plugin type: the owning plugin's preset knows where it belongs
+        # (e.g. backlog_item -> backlog/). Ask before falling back to the
+        # parent core type, or every NoteEntry subclass lands in notes/.
+        from ..plugins import get_registry
+
+        plugin_subdir = get_registry().get_type_default_subdirectory(
+            entry_type, self.config.kb_type
+        )
+        if plugin_subdir:
+            return plugin_subdir
 
         # Plugin subtype: walk MRO to find the parent core type's subdirectory
         from ..models.core_types import ENTRY_TYPE_REGISTRY

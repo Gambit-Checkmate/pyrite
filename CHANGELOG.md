@@ -92,7 +92,17 @@ anonymous/read sessions. Verify the web UI by hand before relying on it.
 
 ### Fixed
 
+- **MCP tools that failed on every call** (found by a new smoke test that
+  dispatches every registered tool)
+  - `task_subtree`, `task_ancestors`, `task_blocked_by`, `task_critical_path`
+    (`AttributeError`; also resolve the task's KB when `kb_name` is omitted)
+  - `kb_manage` `discover`; zettelkasten's zettel listing (invalid FTS5 `*`
+    query); journalism-investigation cross-KB search on hyphenated queries and
+    investigation setup against a missing KB (raw `IntegrityError`)
 - **Index & storage**
+  - New entries of plugin types (e.g. `backlog_item`) were filed under the
+    parent core type's directory (`notes/`) when `kb.yaml` declared the type
+    without a `subdirectory`; the owning plugin's preset default now applies
   - `index sync` silently skipping modified files
   - Frontmatter delimiter matching inside quoted values; wikilink extractor
     counting code fences and path-like targets as broken links

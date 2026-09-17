@@ -424,6 +424,21 @@ class PluginRegistry:
         result.update(plugin_presets)
         return result
 
+    def get_type_default_subdirectory(self, entry_type: str, kb_type: str = "") -> str | None:
+        """Default subdirectory a KB preset declares for ``entry_type``.
+
+        The preset matching ``kb_type`` wins; otherwise the first preset that
+        declares the type. Returns None when no preset places the type.
+        """
+        presets = self.get_all_kb_presets()
+        ordered = [presets[kb_type]] if kb_type in presets else []
+        ordered += [p for name, p in presets.items() if name != kb_type]
+        for preset in ordered:
+            subdir = (preset.get("types", {}).get(entry_type) or {}).get("subdirectory")
+            if subdir:
+                return subdir.strip("/")
+        return None
+
     def get_all_type_metadata(self) -> dict[str, dict]:
         """Get type metadata from all plugins (deep-merged per type)."""
         self.discover()

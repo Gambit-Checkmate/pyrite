@@ -256,7 +256,7 @@ db.execute_sql("SELECT * FROM entry WHERE id = ?", (entry_id,))
 
 **When this bites you:** Creating KB entries with filenames like `templated-foo.md`, `template-bar.md`, or `path-templates.md`. They silently won't be indexed. Rename to avoid the word entirely (e.g., `dynamic-foo.md`).
 
-## Closing a Backlog Item: Use `status=done`, and Beware Auto-Replacement to `kb/notes/`
+## Closing a Backlog Item: Use `status=done` (and the History of the `kb/notes/` Misplacement)
 
 Two traps when closing a `backlog_item`, both load-bearing:
 
@@ -273,18 +273,16 @@ entry's existing subdirectory instead of relocating it to the type default. A
 `backlog_item` already in `kb/backlog/` or `kb/backlog/done/` **stays put** on
 `status=done` — no more manual `mv` after updates.
 
-Residual nuance: `pyrite create -t backlog_item` still lands new items in `kb/notes/`
-(not `kb/backlog/`), because `backlog_item` isn't a schema-declared type in pyrite's
-`kb.yaml` and falls to the generic default. So the workflow is:
+**Create-side placement — fixed 2026-09-17.** `pyrite create -t backlog_item` used to
+land new items in `kb/notes/`. The earlier explanation here ("`backlog_item` isn't
+declared in `kb.yaml`") was wrong: it *is* declared, just without a `subdirectory`, and
+`KBRepository._infer_subdir` then walked the MRO (`BacklogItemEntry` → `NoteEntry` →
+`notes/`) without ever asking the plugin that owns the type. It now consults the plugin
+KB presets first (`PluginRegistry.get_type_default_subdirectory`), so new items land in
+`kb/backlog/`. Precedence: kb.yaml `subdirectory` → core type → plugin preset → MRO parent.
 
-```bash
-# create lands in kb/notes/ — move it into the backlog convention once:
-git mv kb/notes/<id>.md kb/backlog/<id>.md   # (or kb/backlog/done/ when closing)
-.venv/bin/pyrite index sync
-```
-
-After that initial placement, updates keep it there. To remove the residual create-side
-quirk entirely, declare `backlog_item` with `subdirectory: backlog` in the KB schema.
+When closing an item you still `git mv` it to `kb/backlog/done/` yourself — that is a
+convention, not something the type's subdirectory encodes.
 
 ## `pyrite sw new-adr` Takes a Positional TITLE and Misfiles Without `-k`
 

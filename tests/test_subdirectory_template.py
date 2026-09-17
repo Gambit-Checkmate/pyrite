@@ -177,3 +177,51 @@ class TestInferSubdirWithTemplates:
         result = repo.find_file("my-item")
         assert result is not None
         assert result.resolve() == (nested / "my-item.md").resolve()
+
+
+class TestInferSubdirPluginTypeDefault:
+    """A plugin type's own default subdirectory beats its parent core type's.
+
+    Regression: `pyrite create -t backlog_item` landed in `notes/` because
+    kb.yaml declared `backlog_item` without a `subdirectory`, and the fallback
+    walked the MRO (BacklogItemEntry -> NoteEntry -> "notes") without ever
+    asking the plugin that owns the type, whose preset says "backlog/".
+    """
+
+    @pytest.fixture
+    def kb_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def backlog_entry(self):
+        sw = pytest.importorskip("pyrite_software_kb.entry_types")
+        return sw.BacklogItemEntry(id="my-item", title="My item")
+
+    def _repo(self, kb_dir, types_dict, kb_type="software"):
+        config = KBConfig(path=kb_dir, name="test", kb_type=kb_type)
+        config._schema_cache = KBSchema(types=types_dict)
+        return KBRepository(config)
+
+    def test_type_declared_without_subdirectory_uses_plugin_default(self, kb_dir, backlog_entry):
+        repo = self._repo(kb_dir, {"backlog_item": TypeSchema(name="backlog_item")})
+        assert repo._infer_subdir(backlog_entry) == "backlog"
+
+    def test_undeclared_type_uses_plugin_default(self, kb_dir, backlog_entry):
+        repo = self._repo(kb_dir, {})
+        assert repo._infer_subdir(backlog_entry) == "backlog"
+
+    def test_plugin_default_applies_regardless_of_kb_type(self, kb_dir, backlog_entry):
+        repo = self._repo(kb_dir, {}, kb_type="generic")
+        assert repo._infer_subdir(backlog_entry) == "backlog"
+
+    def test_kb_yaml_subdirectory_still_wins(self, kb_dir, backlog_entry):
+        repo = self._repo(
+            kb_dir, {"backlog_item": TypeSchema(name="backlog_item", subdirectory="tickets")}
+        )
+        assert repo._infer_subdir(backlog_entry) == "tickets"
+
+    def test_save_writes_into_plugin_default_directory(self, kb_dir, backlog_entry):
+        repo = self._repo(kb_dir, {"backlog_item": TypeSchema(name="backlog_item")})
+        path = repo.save(backlog_entry)
+        assert path.parent.resolve() == (kb_dir / "backlog").resolve()
