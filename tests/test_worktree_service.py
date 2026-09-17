@@ -38,7 +38,19 @@ def _clean_git_env() -> dict[str, str]:
 def _init_git_repo(path: Path) -> None:
     """Initialize a git repo with an initial commit."""
     env = _clean_git_env()
-    subprocess.run(["git", "init"], cwd=str(path), capture_output=True, check=True, env=env)
+    # `--initial-branch=main` is load-bearing: GitService hardcodes "main" as
+    # the integration branch (merge_branch/reset_to_main), but bare `git init`
+    # uses the host's `init.defaultBranch`, which is `master` on GitHub's
+    # runners. Without this, six tests fail in CI only, with
+    # "pathspec 'main' did not match any file(s) known to git", while passing
+    # on any machine configured with init.defaultBranch=main.
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=str(path),
+        capture_output=True,
+        check=True,
+        env=env,
+    )
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=str(path),
