@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.20.x  | :white_check_mark: |
-| < 0.20  | :x:                |
+| 0.24.x  | :white_check_mark: |
+| < 0.24  | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -13,7 +13,7 @@ If you discover a security vulnerability in Pyrite, please report it responsibly
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email the maintainers directly or use GitHub's private vulnerability reporting feature:
+Instead, use GitHub's private vulnerability reporting feature:
 
 1. Go to the [Security tab](https://github.com/markramm/pyrite/security) of this repository
 2. Click "Report a vulnerability"
