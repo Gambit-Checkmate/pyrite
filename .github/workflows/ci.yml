@@ -52,6 +52,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[all,postgres]"
+          # Extensions are separate distributions, covered by NO pyrite extra.
+          # Without this loop 37 test modules fail at collection with
+          # ModuleNotFoundError (pyrite_journalism_investigation,
+          # pyrite_cascade, pyrite_encyclopedia). test-optional-deps has always
+          # installed them this way; the matrix job never did, which is why the
+          # two jobs collected different test counts (3014 vs 3983).
+          for ext in extensions/*/; do
+            if [ -f "$ext/pyproject.toml" ]; then
+              pip install -e "$ext"
+            fi
+          done
 
       - name: Lint with ruff
         run: |

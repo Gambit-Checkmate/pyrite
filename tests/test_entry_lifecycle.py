@@ -264,10 +264,18 @@ class TestLifecycleCLI:
 
     def test_search_include_archived_flag(self, pyrite_config, pyrite_db):
         """search command has --include-archived flag."""
+        import re
+
         from typer.testing import CliRunner
 
         from pyrite.cli import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["search", "--help"])
-        assert "--include-archived" in result.output
+        # Strip ANSI styling before asserting: rich splits a flag name across
+        # escape sequences when the environment looks color-capable (GitHub
+        # runners do), so the literal "--include-archived" never appears
+        # contiguously even though the flag is rendered. Same failure mode as
+        # tests/test_cli_kb_flag_consistency.py::_plain.
+        help_text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", result.output)
+        assert "--include-archived" in help_text
