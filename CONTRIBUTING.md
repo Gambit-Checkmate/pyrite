@@ -20,17 +20,14 @@ cd pyrite
 # Create virtual environment and install dependencies
 uv venv
 source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
-uv pip install -e ".[dev]"
+# `.[all]` is the whole optional surface (CLI, server, MCP, AI) plus the test
+# tooling. `.[dev]` alone is tooling only and cannot even collect the suite.
+uv pip install -e ".[all]"
 
 # Install all extensions (required for full test suite)
-.venv/bin/pip install -e extensions/zettelkasten
-.venv/bin/pip install -e extensions/social
-.venv/bin/pip install -e extensions/encyclopedia
-.venv/bin/pip install -e extensions/software-kb
-.venv/bin/pip install -e extensions/cascade
-.venv/bin/pip install -e extensions/journalism-investigation
+for ext in extensions/*/; do uv pip install -e "$ext"; done
 
-# Install pre-commit hooks
+# Install the git hooks (commit, commit-msg and pre-push in one go)
 pre-commit install
 
 # Verify installation

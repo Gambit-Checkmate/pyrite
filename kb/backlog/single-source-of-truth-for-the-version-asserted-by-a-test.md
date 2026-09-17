@@ -8,7 +8,7 @@ tags:
 - programmatic-validation
 importance: 5
 kind: bug
-status: proposed
+status: in_progress
 priority: high
 effort: S
 rank: 0
@@ -48,3 +48,15 @@ heading, so new entries are being appended to a version that claims to be cut.
 - [ ] The test fails on today's tree, passes after the sync.
 
 Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health). Same family as [[docs-counts-generated-or-asserted-from-code]].
+
+## Status 2026-09-17
+
+**Done:** `pyrite.__version__` reads `pyproject.toml` in a source checkout and
+installed metadata otherwise (`tests/test_version_consistency.py`). Metadata
+alone was not enough: an editable install's metadata stays at the old version
+after a bump until `pip install -e .` is re-run (it said 0.24.0 while
+pyproject said 0.24.1).
+
+**Still open:** `web/package.json` and `pyrite-mcp` agreement (both wait on the
+ADR-0031 packaging question), `.claude-plugin/plugin.json`, the
+`## [Unreleased]` heading plus the top-CHANGELOG-version-has-a-tag assertion.

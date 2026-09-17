@@ -99,6 +99,11 @@ anonymous/read sessions. Verify the web UI by hand before relying on it.
   - `kb_manage` `discover`; zettelkasten's zettel listing (invalid FTS5 `*`
     query); journalism-investigation cross-KB search on hyphenated queries and
     investigation setup against a missing KB (raw `IntegrityError`)
+- `pyrite.__version__` reported `0.12.0`; it now reads the packaged version
+- `LICENSE` was missing a clause of the MIT text and named no copyright holder
+  (GitHub showed the license as "Other")
+- `CONTRIBUTING.md` told contributors to install `.[dev]`, which cannot run the
+  test suite; it now says `.[all]` plus the extensions
 - **Index & storage**
   - New entries of plugin types (e.g. `backlog_item`) were filed under the
     parent core type's directory (`notes/`) when `kb.yaml` declared the type
@@ -158,6 +163,28 @@ anonymous/read sessions. Verify the web UI by hand before relying on it.
 
 ### Security
 
+**If you run `pyrite-server` with a GitHub token configured, or expose it to
+more than one user, upgrade.**
+
+- **GitHub token disclosure.** Repo URLs were matched against `github.com` as a
+  substring, so `https://evil.example/github.com/a/b` was treated as a GitHub
+  repo and the server's token was sent to that host. Reachable by a write-tier
+  caller through `POST /repos/subscribe`. The host is now parsed and compared
+  for equality; userinfo and non-https schemes are refused; owner and repo
+  names are validated.
+- **Git argument injection.** `clone` and `git add` passed caller-supplied
+  values without `--`, so a value starting with `-` was read as a git option
+  (`--upload-pack=<cmd>` executes). Both now use `--` and refuse option-shaped
+  input.
+- **Mutating routes reachable at read tier.** `POST /kbs/{kb}/export` (clone and
+  push a whole KB to a caller-chosen URL), `POST /collections` and
+  `POST /ai/test` had no tier guard; all three now require write tier. A new
+  test calls every mutating `/api` route with a read-tier key and requires 403,
+  so an unguarded route fails CI.
+- **Stored XSS in the web UI.** Rendered markdown went into the page
+  unsanitized on the entry page and in daily notes, and an entry title could
+  break out of the JSON-LD `<script>` block. Rendered HTML now passes through
+  DOMPurify; `<` is escaped in JSON-LD.
 - Web clipper SSRF defense: private, loopback, and link-local IPs blocked
 
 ### Community contributions

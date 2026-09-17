@@ -8,7 +8,7 @@ tags:
 - public-repo
 importance: 5
 kind: bug
-status: proposed
+status: done
 priority: high
 effort: XS
 rank: 0
