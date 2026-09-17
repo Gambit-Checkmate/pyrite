@@ -1,0 +1,4 @@
+# The pre-commit pytest hook once leaked GIT_DIR into test fixtures, which wrote
+# a throwaway identity into this repo's .git/config (see conftest.py). Those
+# commits are pushed, so they are remapped here rather than rewritten.
+markramm <mark.ramm@gmail.com> Test <test@test.com>
