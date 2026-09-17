@@ -1,6 +1,6 @@
 ---
 name: pyrite-dev
-description: "This skill should be used when working in the /Users/markr/pyrite repo — fixing a bug, adding a feature, writing or running tests, debugging, completing or filing a backlog item, releasing dev→main, or deploying to demo.pyrite.wiki / capturecascade.org / pyrite.ink. Enforces TDD, root-cause debugging, evidence-before-claims verification, and CLI-driven backlog management."
+description: "This skill should be used when working in the pyrite repo — fixing a bug, adding a feature, writing or running tests, debugging, completing or filing a backlog item, releasing dev→main, or deploying to demo.pyrite.wiki / capturecascade.org / pyrite.ink. Enforces TDD, root-cause debugging, evidence-before-claims verification, and CLI-driven backlog management."
 ---
 
 # Pyrite Development Skill
@@ -130,7 +130,7 @@ BEFORE claiming any work is complete:
 
 | Claim | Run | Look For |
 |-------|-----|----------|
-| Backend tests pass | `cd /Users/markr/pyrite && .venv/bin/pytest tests/ -v` | `X passed, 0 failed` |
+| Backend tests pass | `.venv/bin/pytest tests/ -v` (from the repo root) | `X passed, 0 failed` |
 | Frontend unit tests pass | `cd web && npm run test:unit` | All tests pass |
 | E2E tests pass | `cd web && npm run test:e2e` | All tests pass |
 | Build succeeds | `cd web && npm run build` | `dist/` created, exit 0 |

@@ -8,7 +8,7 @@ tags:
 - public-repo
 importance: 5
 kind: bug
-status: proposed
+status: in_progress
 priority: high
 effort: S
 rank: 0
@@ -50,3 +50,33 @@ decision here.
       tracked file, so this does not recur.
 
 Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health).
+
+## Status 2026-09-17: tip scrubbed; history rewrite evaluated and not recommended
+
+**Scrubbed at the tip (18 files):** every absolute home path (now `~/…` or
+`<repo>`); the named individual (now "the editor"); the investigation subjects,
+request identifiers and outreach strategy in
+`add-blocked-on-optional-field-to-task-schema.md` (now placeholders). `git grep`
+for each returns nothing. `release-runbook.md` is marked maintainer-only.
+
+**Deliberately left:** private repository *names* (names only, no contents);
+the KB counts in `FEEDBACK.md` (they reveal nothing); `plugin.json` author.
+
+**History rewrite — evaluated, not recommended:**
+- The only material that is more than cosmetic is one passage in one file, added
+  in one commit (`b446ee0`, 2026-04-23). It never reached `main`.
+- It has been public for about five months, and one fork exists
+  (the outside contributor's), which a rewrite cannot reach. GitHub also keeps
+  unreachable commits addressable by SHA until support purges them.
+- A rewrite changes every commit SHA after April: it breaks the fork's PR base,
+  the SHAs cited throughout `kb/` and CHANGELOG, and any clone.
+- What the passage exposes is *which records requests were planned* for subjects
+  whose coverage is itself published. That is stale strategy, not a source, a
+  credential, or a private person's data.
+
+Revisit only if something of a different class turns up (a source's identity,
+unpublished documents, credentials) — then rewrite and ask GitHub support to
+purge cached views.
+
+**Still open:** the recurrence guard (a test or hook that fails on a new absolute
+home path in a tracked file).

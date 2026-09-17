@@ -2,6 +2,11 @@
 
 Procedural reference for the `dev → main` release path and the deploy script. SKILL.md keeps the daily-development rules (branches, committing); this file holds the runbook steps that only fire when shipping.
 
+> **Maintainer-only.** Cutting releases and running the deploy script need push
+> rights to `main` and the gitignored `pyrite_deployments/` directory, which
+> holds the maintainer's site configs. Contributors never need this file: open a
+> PR against `dev` (see CONTRIBUTING.md).
+
 ## Releasing (dev → main)
 
 Only merge `dev` → `main` when the user explicitly asks to release.

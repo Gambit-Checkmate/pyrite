@@ -20,9 +20,9 @@ effort: M
 
 ## Reference Implementation
 
-`/Users/markr/kleptocracy-timeline/timeline/scripts/generate.py` (~486 lines). A `TimelineGenerator` class that loads events from markdown, sorts by date, and produces multiple output formats. Read it for the exact field names and structures.
+`~/kleptocracy-timeline/timeline/scripts/generate.py` (~486 lines). A `TimelineGenerator` class that loads events from markdown, sorts by date, and produces multiple output formats. Read it for the exact field names and structures.
 
-Also: `/Users/markr/kleptocracy-timeline/timeline/scripts/generate_csv.py` for CSV export format.
+Also: `~/kleptocracy-timeline/timeline/scripts/generate_csv.py` for CSV export format.
 
 ## Problem
 

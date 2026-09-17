@@ -31,7 +31,7 @@ Currently, Pyrite entries have an `aliases` field, and the wikilink service reso
 
 ## Reference Implementation
 
-`/Users/markr/kleptocracy-timeline/timeline/scripts/maintenance/suggest_actor_aliases.py` (~680 lines, self-contained Python). This is the source to port — read it for algorithm details, edge cases, and the interactive review UX.
+`~/kleptocracy-timeline/timeline/scripts/maintenance/suggest_actor_aliases.py` (~680 lines, self-contained Python). This is the source to port — read it for algorithm details, edge cases, and the interactive review UX.
 
 ## Context
 

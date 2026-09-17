@@ -69,9 +69,9 @@ For a system designed to operate autonomously (`/loop /investigation-conductor`)
 
 ## Related
 
-- `/Users/markr/tcp-skills/plugins/tcp-skills/skills/investigation-conductor/SKILL.md` Step 4 grooming
+- `~/tcp-skills/plugins/tcp-skills/skills/investigation-conductor/SKILL.md` Step 4 grooming
 - `add-blocked-on-optional-field-to-task-schema.md` — separate but adjacent task-system improvement
-- Memory note in `/Users/markr/.claude/projects/-Users-markr-kb/memory/` flagging the stale-claim workflow trap discovered 2026-05-11
+- Memory note in `~/.claude/projects/<project>/memory/` flagging the stale-claim workflow trap discovered 2026-05-11
 
 ## Resolution (2026-06-24)
 

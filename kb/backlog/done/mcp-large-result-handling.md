@@ -34,4 +34,4 @@ Files modified: `pyrite/storage/queries.py`, `pyrite/services/kb_service.py`, `p
 
 Raised `max_distance` cutoff from 1.1 to 1.3 in `embedding_service.py` and `search_service.py`. The 1.1 threshold was too aggressive for abstract/conceptual queries whose cosine distances typically land in the 1.1-1.2 range, causing zero results.
 
-Also built the embedding index for the production DB (`/Users/markr/kb/index.db`) which had zero embeddings despite having 4,691 entries.
+Also built the embedding index for the production DB (`~/kb/index.db`) which had zero embeddings despite having 4,691 entries.

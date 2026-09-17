@@ -15,7 +15,7 @@ rank: 2350
 
 Answered the open question below: this is not a supported general-
 purpose "Edit entry" feature. Mark's call -- unused, not core, and
-Amy's workflow genuinely runs through Google Docs, so the in-Pyrite
+The editor's workflow genuinely runs through Google Docs, so the in-Pyrite
 review UI never had a real user. Removed in commit 74a2cb1: web UI
 (CommentsPanel.svelte, SubmitForReview.svelte, comment-anchor.ts,
 /review route, plus the Sidebar/entries-store/ui-store/entry-page
@@ -36,7 +36,7 @@ The stashed WIP described below was applied and committed in `26b3c9a`
 all 9 files (5 modified, 4 new) match exactly. `git stash list` no
 longer contains this work; it is live on `dev`.
 
-This ticket's original framing (Amy's workflow moved to Google Drive,
+This ticket's original framing (the editor's workflow moved to Google Drive,
 so the in-Pyrite review UI is descoped) may or may not still be the
 operating decision — a different session shipped the feature without
 updating this ticket, so the intent behind that commit is not captured
@@ -47,25 +47,25 @@ the Google Drive workflow decision?
 
 Marking `done` so the backlog does not claim the feature does not
 exist when `web/src/routes/review/` is live on `dev`. Re-open or split
-into a follow-up ticket if the Amy-specific framing still needs
+into a follow-up ticket if the editor-specific framing still needs
 reconciling with what shipped.
 
 ---
 
 ## Original context (2026-06-09)
 
-A review-flow web UI was in flight to support Amy's editorial workflow:
+A review-flow web UI was in flight to support the editor's editorial workflow:
 non-admin editor opens a draft, makes inline edits, adds comments
 anchored to text ranges, submits, and an admin merges through the
 worktree collaboration system. The backend integration shipped and is
 covered by an e2e test (tests/test_review_flow_e2e.py, committed
 2026-06-05 in 8cdd0b8).
 
-On 2026-06-09, Amy's workflow moved to Google Workspace instead:
+On 2026-06-09, the editor's workflow moved to Google Workspace instead:
 
 1. Pyrite (or a script) auto-creates a Google Doc in a shared Drive from
    the draft.
-2. Amy edits and revises in Google Docs — familiar tooling, native comment
+2. The editor edits and revises in Google Docs — familiar tooling, native comment
    thread, no Pyrite-UI learning curve.
 3. The author finds an image while she edits, then paste-publishes the
    final version to Substack from the Doc.
@@ -95,23 +95,23 @@ The backend integration remains live:
 - KBService.update_entry metadata-merge (d0e2677)
 - Endpoint metadata wire-through (d0e2677)
 - E2E test (tests/test_review_flow_e2e.py) — passes; covers the
-  worktree → submit → merge → KB contract for any editor flow (Amy or
+  worktree → submit → merge → KB contract for any editor flow (the editor or
   otherwise), not specifically the Pyrite-UI flavor.
 
 ## What's still wanted (if reconciling as a general feature)
 
-A general in-Pyrite edit feature for entries (not specifically the Amy
+A general in-Pyrite edit feature for entries (not specifically the editor
 draft-review use case) — for ad-hoc edits by any user who would rather
 stay in the Pyrite web UI than round-trip through Google Drive. If the
 shipped work is meant to serve this, consider:
 
 - The comment-anchoring approach (web/src/lib/editor/comment-anchor.ts)
-  was tailored to the Amy use case (anchoring to specific paragraph
+  was tailored to the editor use case (anchoring to specific paragraph
   ranges). A general edit feature may want a different model.
 - The submit-for-review flow assumes the worktree path (right per
   ADR-0024 for multi-user editing), but "Submit for Review" framing may
   need rewording if this is now general-purpose rather than
-  Amy-specific.
+  editor-specific.
 
 ## Related
 
@@ -127,4 +127,3 @@ shipped work is meant to serve this, consider:
 - ADR-0024 — worktree collaboration model.
 - epic-fork-system (done at 3/8) — the multi-user editing
   infrastructure this WIP was building on.
-

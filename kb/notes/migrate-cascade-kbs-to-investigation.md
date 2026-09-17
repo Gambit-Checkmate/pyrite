@@ -19,9 +19,9 @@ rank: 600
 
 Migrate these KBs from cascade-plugin-owned to plain investigation KBs:
 
-- `/Users/markr/cascade-kb/cascade-timeline/`
-- `/Users/markr/cascade-kb/cascade-research/`
-- `/Users/markr/cascade-kb/cascade-solidarity/`
+- `~/cascade-kb/cascade-timeline/`
+- `~/cascade-kb/cascade-research/`
+- `~/cascade-kb/cascade-solidarity/`
 
 Plus: repo hygiene for cascade-timeline, and a migration CLI for any
 out-of-tree cascade KBs.
@@ -127,8 +127,8 @@ community KBs).
 
 - `pyrite/cli/kb_commands.py` (or equivalent) — `pyrite kb migrate` command
 - `pyrite/services/migration_service.py` (new) — migration logic, type-map, field-remap
-- `/Users/markr/cascade-kb/cascade-timeline/kb.yaml` — rewritten
-- `/Users/markr/cascade-kb/cascade-timeline/scripts/normalize.py` — checked in
+- `~/cascade-kb/cascade-timeline/kb.yaml` — rewritten
+- `~/cascade-kb/cascade-timeline/scripts/normalize.py` — checked in
 - Same treatment for cascade-research and cascade-solidarity kb.yaml
 
 ## Done when

@@ -40,7 +40,7 @@ The requesting workflow uses pyrite entirely through CLI (no MCP) across multipl
 
 ## Source
 
-From `/Users/markr/tcp-kb-internal/agent-cli-feature-requests.md` (2026-03-08).
+From `~/tcp-kb-internal/agent-cli-feature-requests.md` (2026-03-08).
 
 ## Acceptance Criteria
 

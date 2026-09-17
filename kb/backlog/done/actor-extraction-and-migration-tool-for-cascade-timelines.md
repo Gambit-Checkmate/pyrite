@@ -32,8 +32,8 @@ No automated tooling exists for this migration path.
 
 ## Reference Files
 
-- Alias mapping: `/Users/markr/kleptocracy-timeline/timeline/data/actor_aliases.json` (880 lines, ~250 canonical actors). Format: `{"canonical name": ["alias1", "alias2"]}` sorted alphabetically.
-- Alias suggestion tool: `/Users/markr/kleptocracy-timeline/timeline/scripts/maintenance/suggest_actor_aliases.py` (produces the alias file)
+- Alias mapping: `~/kleptocracy-timeline/timeline/data/actor_aliases.json` (880 lines, ~250 canonical actors). Format: `{"canonical name": ["alias1", "alias2"]}` sorted alphabetically.
+- Alias suggestion tool: `~/kleptocracy-timeline/timeline/scripts/maintenance/suggest_actor_aliases.py` (produces the alias file)
 
 ## Context
 

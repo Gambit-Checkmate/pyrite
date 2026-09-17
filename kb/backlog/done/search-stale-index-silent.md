@@ -30,8 +30,8 @@ Root cause:
 
 ### Related: dual-index split (upstream root)
 
-The `kb` wrapper sets `PYRITE_CONFIG_DIR=/Users/markr/kb`, so it reads/writes
-`/Users/markr/kb/index.db`, NOT `~/.pyrite/index.db` used by bare `pyrite`. The two
+The `kb` wrapper sets `PYRITE_CONFIG_DIR=~/kb`, so it reads/writes
+`~/kb/index.db`, NOT `~/.pyrite/index.db` used by bare `pyrite`. The two
 commands query different indexes, which makes silent staleness easier to hit and
 corroborates `bug_pyrite_silent_index_failure`. Worth resolving alongside this so both
 share one index.

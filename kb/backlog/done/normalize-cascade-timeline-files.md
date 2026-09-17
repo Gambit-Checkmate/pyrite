@@ -33,7 +33,7 @@ easy to work with.
 4. Check in `scripts/normalize.py` (the one used today) so drift can be
    caught repeatably.
 
-Applies to `/Users/markr/cascade-kb/cascade-timeline/` only. The retired
+Applies to `~/cascade-kb/cascade-timeline/` only. The retired
 internal copy at `tcp-kb-internal/cascade-timeline/` should eventually be
 archived — see the wider epic.
 

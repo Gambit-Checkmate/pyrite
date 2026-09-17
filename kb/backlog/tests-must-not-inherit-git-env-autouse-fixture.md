@@ -36,7 +36,7 @@ see Acceptance): `tests/test_version_service.py:19-23` runs `git init` then
 suite runs inside the pre-commit `pytest` hook it is a child of
 `git commit`, which exports `GIT_DIR` (and `GIT_INDEX_FILE`) pointing at the
 real repo. `GIT_DIR` beats `cwd`, so the config write lands in
-`/Users/.../pyrite/.git/config`. The values match exactly, and the first
+`<repo>/.git/config`. The values match exactly, and the first
 `Test` commit follows the hook's installation by hours.
 
 Same unscrubbed pattern: `tests/test_kb_commit.py:29-37`,

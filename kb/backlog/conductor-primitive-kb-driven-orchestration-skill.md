@@ -418,8 +418,8 @@ Acceptance: triage-mode synthesis produces a consolidated deploy-ready index as 
 
 ## Related
 
-- `/Users/markr/tcp-skills/plugins/tcp-skills/skills/investigation-conductor/` — current investigation-conductor skill (cascade-research backlog)
-- `/Users/markr/tcp-skills/plugins/tcp-skills/skills/draft-conductor/` — current draft-conductor skill (drafts backlog)
+- `~/tcp-skills/plugins/tcp-skills/skills/investigation-conductor/` — current investigation-conductor skill (cascade-research backlog)
+- `~/tcp-skills/plugins/tcp-skills/skills/draft-conductor/` — current draft-conductor skill (drafts backlog)
 - `add-task-reset-command-for-stale-claims.md` — adjacent task-system improvement that the generalized conductor would need
 - May 2026 triage waves on drafts KB (15+15+40 pieces) validated the pattern across editorial-cycle AND triage workflows
 - The `goals` and `pressure_windows` design echoes the conductor's existing news-cycle-attachment handling but makes it declarative instead of implicit

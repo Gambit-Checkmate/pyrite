@@ -19,22 +19,23 @@ filing, civil-discovery window, a named person) have no good home in the current
 The cascade-research investigation conductor (2026-04-23 ticks 2–4) hit this
 repeatedly:
 
-- `task-inv1-kvg-bonding-surety` — KVG org profile created, $113M contract
-  identifier extracted, bonding architecture mapped. Core question (surety
-  issuer, FAR waiver, contracting officer) requires SAM.gov authenticated session
-  OR FOIA to ICE OAQ 70CDCR and NAVSUP Mechanicsburg.
-- `task-inv3-ags-client-list` — AGS org profile 4x expanded, four strategic
-  partnerships documented, confirmed AGS files no FARA / no LDA by design. Core
-  question (client list) requires FARA interactive search + Checkmate LDA
-  quarterly-filing review + FOIA to Treasury/State.
-- `task-inv4-1789-capital-lp-roster` — Form ADV + Form D roster committed,
-  $861M–$2B capital-raise aggregate timeline documented. Core question (named
-  sovereign-wealth-fund LPs) requires feeder-fund documents + next ADV
-  amendment (mid-2026) + Ballhaus WSJ FOIA response.
-- `task-inv4-tahnoon-500m-corporate-vehicles` — Aryam Investment 1 twin-shell
-  structure identified, three G42 executives named. Core question (second
-  tranche allocation, CFIUS/FinCEN, on-chain forensics) requires Delaware
-  interactive + ADGM interactive + Etherscan analysis + WSJ direct outreach.
+- `task-<inv>-<subject-a>` — organization profile created, contract identifier
+  extracted, financing structure mapped. The core question requires an
+  authenticated government-portal session OR a public-records request.
+- `task-<inv>-<subject-b>` — organization profile expanded, partnerships
+  documented, registration status confirmed. The core question requires
+  interactive registry searches plus public-records requests to two agencies.
+- `task-<inv>-<subject-c>` — regulatory-filing roster committed, fundraising
+  timeline documented. The core question requires documents that do not exist
+  yet (the next scheduled filing) plus a pending records response.
+- `task-<inv>-<subject-d>` — corporate structure identified. The core question
+  requires two interactive registry sessions, on-chain analysis, and direct
+  outreach to a reporter.
+
+(Subjects and request strategy replaced with placeholders 2026-09-17, per
+`FEEDBACK.md`'s rule for investigation content in this public KB. The pattern is
+what matters here: every deliverable finished, every core question gated on
+something an agent cannot do.)
 
 In the current state machine, "deliverable-complete but core-question-gated"
 collapses to either `blocked` (loses completed-deliverable status) or `done`
@@ -69,15 +70,15 @@ of structured strings with convention-based prefixes:
 
 ```yaml
 blocked_on:
-  - "foia:ice-oaq-70cdcr"
-  - "foia:navsup-mechanicsburg"
+  - "foia:<agency-office>"
+  - "foia:<second-agency>"
   - "interactive:sam-gov"
   - "interactive:fara-efile"
   - "interactive:lda-disclosures-house-gov"
   - "date:2026-08-01"               # Form ADV annual amendment expected
   - "person:mark"                    # human required, no external gate
-  - "event:wsj-ballhaus-foia-response"
-  - "litigation:maryland-injunction-discovery"
+  - "event:<reporter>-records-response"
+  - "litigation:<case>-discovery"
 ```
 
 Task-to-task blockers continue to use `dependencies:` — the `task:` prefix is
@@ -95,20 +96,20 @@ the follow-up surface for a future reopening.
 pyrite task list --kb cascade-research --blocked-on 'foia:*'
 pyrite task list --kb cascade-research --blocked-on 'date:<=2026-06-01'
 pyrite task list --kb cascade-research --blocked-on 'interactive:sam-gov'
-pyrite task update <task-id> --add-blocker 'foia:ice-oaq-70cdcr'
-pyrite task update <task-id> --remove-blocker 'foia:ice-oaq-70cdcr'
+pyrite task update <task-id> --add-blocker 'foia:<agency-office>'
+pyrite task update <task-id> --remove-blocker 'foia:<agency-office>'
 ```
 
 ### Prefix convention (initial; free-form strings otherwise)
 
 | Prefix | Semantics | Example |
 |---|---|---|
-| `foia:` | FOIA request to a specific agency | `foia:ice-oaq-70cdcr` |
+| `foia:` | FOIA request to a specific agency | `foia:<agency-office>` |
 | `interactive:` | Interactive-session database | `interactive:fara-efile` |
 | `date:` | Wait until this date (ISO-8601) | `date:2026-08-01` |
 | `event:` | Waiting on a specific external event | `event:next-form-adv-amendment` |
 | `person:` | Blocked on a specific human | `person:mark` |
-| `litigation:` | Gated by a civil-discovery process | `litigation:maryland-injunction` |
+| `litigation:` | Gated by a civil-discovery process | `litigation:<case>` |
 | `paywall:` | Gated by a specific paywall | `paywall:stat-news` |
 
 Deliberately NOT in the prefix list: `task:`. Task-to-task dependencies are

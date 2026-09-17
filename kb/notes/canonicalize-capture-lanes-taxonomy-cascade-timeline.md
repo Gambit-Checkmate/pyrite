@@ -174,6 +174,6 @@ and unlocks reliable cross-cutting queries that are currently silently wrong.
 ## Related
 
 - cascade-timeline contains 4,888 events (April 2026 count)
-- Primary affected files: anything under `/Users/markr/tcp-kb-internal/cascade-timeline/*.md`
+- Primary affected files: anything under `~/tcp-kb-internal/cascade-timeline/*.md`
 - Downstream consumers: cascade-research investigation-map, RAMM publication
   pipeline, any capture-lanes-based analytical query

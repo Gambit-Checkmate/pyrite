@@ -18,7 +18,7 @@ rank: 0
 Three distinct tests have been observed failing under full-suite `pytest tests/ -x` runs today while passing cleanly in isolation and in small-group runs alongside neighboring test files:
 
 1. `tests/test_index_worker.py::TestConcurrency::test_different_kbs_get_different_jobs` -- teardown `OSError: [Errno 66] Directory not empty` (tempdir race)
-2. `tests/test_review_flow_e2e.py::test_amy_edit_and_comment_merges_into_kb` -- this test has since been removed (see the Amy-edit-feature-removal commit), so it's moot going forward, but it was a real full-suite-only failure while it existed
+2. `tests/test_review_flow_e2e.py::test_editor_edit_and_comment_merges_into_kb` -- this test has since been removed (see the the editor-edit-feature-removal commit), so it's moot going forward, but it was a real full-suite-only failure while it existed
 3. `tests/test_worktree_service.py::TestGitServiceWorktree::test_worktree_add_creates_directory` -- fails under full-suite `-x` run, passes in isolation and paired with neighboring files
 
 None reproduce in isolation. None are related to any code change in the sessions that found them -- diffs touched unrelated areas (storage, auth, plugins, CLI) each time. This strongly suggests shared/leaked state across the suite: a module-level singleton, a working-directory side effect, a tempdir cleanup race, or fixture ordering sensitivity -- not per-test bugs.
@@ -79,9 +79,9 @@ Found while fixing ci-make-green-and-load-bearing item 2 (pre-commit's pytest-ch
 
   **Verified against the real reproduction, not just the synthetic
   test**: ran `test_worktree_service.py` with
-  `GIT_DIR=/Users/markr/pyrite/.git
-  GIT_WORK_TREE=/Users/markr/pyrite
-  GIT_INDEX_FILE=/Users/markr/pyrite/.git/index` set in the actual
+  `GIT_DIR=<repo>/.git
+  GIT_WORK_TREE=<repo>
+  GIT_INDEX_FILE=<repo>/.git/index` set in the actual
   shell env (the exact vars a real `git commit` sets for hook
   subprocesses) -- all 22 tests pass. Then ran the full suite for
   real: `pytest tests/ -x -q --tb=short` -- **3028 passed, 68 skipped,

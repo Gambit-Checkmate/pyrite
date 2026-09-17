@@ -30,7 +30,7 @@ time.
 pyrite task list -k cascade-research --status open -f json     # 159 open tasks
 ~/kb/kb task list -k cascade-research --status open -f json    # 161 open tasks
 ```
-(`~/kb/kb` is a two-line wrapper that sets `PYRITE_CONFIG_DIR=/Users/markr/kb`
+(`~/kb/kb` is a two-line wrapper that sets `PYRITE_CONFIG_DIR=~/kb`
 and execs the venv binary.)
 
 **Expected:** same command, same machine, same `-k` → same result set.
@@ -49,8 +49,8 @@ independently-maintained config files, and which one you get depends entirely on
 whether `PYRITE_CONFIG_DIR` is set in the environment:
 
 ```
-/Users/markr/.pyrite/config.yaml   47 knowledge_bases   <- bare `pyrite` (default)
-/Users/markr/kb/config.yaml        52 knowledge_bases   <- `~/kb/kb` (wrapper sets PYRITE_CONFIG_DIR)
+~/.pyrite/config.yaml   47 knowledge_bases   <- bare `pyrite` (default)
+~/kb/config.yaml        52 knowledge_bases   <- `~/kb/kb` (wrapper sets PYRITE_CONFIG_DIR)
 ```
 
 Diff of the two registries:
@@ -72,7 +72,7 @@ same cause, different symptom.
 
 1. **Print the resolved config path on stderr** when a command touches the
    registry, the way the stale-index warning already names specific KBs. One
-   line: `using config: /Users/markr/kb/config.yaml (52 KBs)`.
+   line: `using config: ~/kb/config.yaml (52 KBs)`.
 2. **`pyrite config which`** / `pyrite config diff <other>` so drift is
    inspectable rather than inferred from a count mismatch.
 3. **Warn on startup if a second candidate config exists** and its KB set is not

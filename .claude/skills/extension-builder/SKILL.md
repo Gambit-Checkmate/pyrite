@@ -92,7 +92,7 @@ packages = ["src/pyrite_<snake_name>"]
 
 ```bash
 # Install in dev mode
-cd /Users/markr/pyrite
+cd <pyrite repo root>
 .venv/bin/pip install -e extensions/<name>
 
 # Verify plugin loads
