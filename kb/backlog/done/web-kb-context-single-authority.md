@@ -3,7 +3,7 @@ id: web-kb-context-single-authority
 type: backlog_item
 title: "Web: make KB context explicit and single-authority (URL-first, switcher navigates, persisted)"
 kind: bug
-status: proposed
+status: superseded
 priority: high
 effort: M
 created: "2026-07-03"
@@ -13,6 +13,7 @@ links:
 - target: epic-shared-instance-readiness
   relation: subtask_of
   kb: pyrite
+github_issue: 10
 ---
 
 ## Problem
@@ -56,3 +57,7 @@ pages, so there is no single answer to the question.
 - Reload preserves KB context.
 - One util owns precedence, with unit tests for URL/store/default
   cases.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #10 (https://github.com/markramm/pyrite/issues/10) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

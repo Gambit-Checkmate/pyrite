@@ -7,7 +7,7 @@ tags:
 - privacy
 - public-repo
 importance: 5
-kind: bug
+kind: task
 status: in_progress
 priority: high
 effort: S

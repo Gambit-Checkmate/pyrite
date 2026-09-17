@@ -3,7 +3,7 @@ id: web-fix-dropped-kb-seams
 type: backlog_item
 title: "Web: fix the three dropped-KB-param seams (orient→graph, graph node tap, orient recent links)"
 kind: bug
-status: proposed
+status: superseded
 priority: high
 effort: S
 created: "2026-07-03"
@@ -16,6 +16,7 @@ links:
 - target: web-kb-context-single-authority
   relation: related
   kb: pyrite
+github_issue: 11
 ---
 
 ## Problem
@@ -45,3 +46,7 @@ decides if it lands first; otherwise use `?kb=` consistently.
 
 - orient→graph handoff scopes the graph to the orient KB.
 - Clicking a graph node opens the entry in the correct KB.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #11 (https://github.com/markramm/pyrite/issues/11) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

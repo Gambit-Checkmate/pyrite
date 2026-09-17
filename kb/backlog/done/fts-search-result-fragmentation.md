@@ -5,7 +5,7 @@ type: backlog_item
 tags: [epstein-files, search, fts]
 importance: 5
 kind: bug
-status: deferred
+status: superseded
 priority: medium
 effort: M
 rank: 0
@@ -37,3 +37,7 @@ Use FTS to find the EFTA number, then use LIKE search with the EFTA ID to get th
 bash database/fts_search.sh "mosquitoes thiel"     # find the doc
 python3 database/search_epstein.py "EFTA02645256"   # get full content
 ```
+
+## Superseded 2026-09-17
+
+Not a Pyrite bug (see the note at the top: it belongs to a different project's tooling and was filed here by mistake). Closed under ADR-0033 rather than migrated to GitHub.

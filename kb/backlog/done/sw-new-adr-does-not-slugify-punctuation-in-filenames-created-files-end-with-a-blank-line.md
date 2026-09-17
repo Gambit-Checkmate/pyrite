@@ -8,10 +8,11 @@ tags:
 - agent-experience
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: medium
 effort: XS
 rank: 0
+github_issue: 17
 ---
 
 ## Problem
@@ -53,3 +54,7 @@ Found while writing ADR-0032.
 - Since 2026-09-17 the repository refuses any id or path that would leave the KB
   (`KBRepository._validate_entry_id` / `_contained`), so these now fail safely — but
   they should not fail at all. Use `generate_entry_id`.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #17 (https://github.com/markramm/pyrite/issues/17) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

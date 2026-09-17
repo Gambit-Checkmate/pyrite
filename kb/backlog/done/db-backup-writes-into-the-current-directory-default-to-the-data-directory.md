@@ -6,10 +6,11 @@ tags:
 - cli
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: low
 effort: XS
 rank: 0
+github_issue: 21
 ---
 
 ## Problem
@@ -28,3 +29,7 @@ explicit location. Consider a retention count.
 - [ ] `pyrite db backup` from any cwd leaves the cwd untouched (test).
 
 Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health).
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #21 (https://github.com/markramm/pyrite/issues/21) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

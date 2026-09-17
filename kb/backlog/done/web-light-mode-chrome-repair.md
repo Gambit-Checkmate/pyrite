@@ -3,11 +3,12 @@ id: web-light-mode-chrome-repair
 type: backlog_item
 title: "Web: light mode has invisible text in sidebar chrome + always-dark graph canvas (dark-first blind spots)"
 kind: bug
-status: proposed
+status: superseded
 priority: medium
 effort: S
 created: "2026-07-03"
 tags: [web, ux, theming, ux-audit-2026-07]
+github_issue: 12
 ---
 
 ## Problem
@@ -38,3 +39,7 @@ silently break light again.
 
 - Every sidebar element legible in both themes.
 - Graph canvas follows the active theme.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #12 (https://github.com/markramm/pyrite/issues/12) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

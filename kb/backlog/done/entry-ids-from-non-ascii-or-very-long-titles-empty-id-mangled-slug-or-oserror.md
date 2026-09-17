@@ -8,10 +8,11 @@ tags:
 - i18n
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: medium
 effort: S
 rank: 0
+github_issue: 16
 ---
 
 ## Problem
@@ -42,3 +43,7 @@ a scratch KB:
 - [ ] Parametrized test over the table above: every title yields a non-empty id
       matching `^[a-z0-9][a-z0-9-]{0,79}$`, and `pyrite create` exits 0.
 - [ ] Existing ids are unchanged for ASCII titles (no mass rename).
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #16 (https://github.com/markramm/pyrite/issues/16) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

@@ -9,10 +9,11 @@ links:
   kb: pyrite
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: high
 effort: S
 rank: 0
+github_issue: 9
 ---
 
 ## Problem
@@ -106,3 +107,7 @@ session condition).
 - e2e search spec asserts result text content (not just container
   presence), gated in CI per [[web-test-confusion-surfaces]].
 - Zero console 401s on the search page for a read-authorized user.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #9 (https://github.com/markramm/pyrite/issues/9) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

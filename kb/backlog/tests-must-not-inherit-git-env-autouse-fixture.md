@@ -16,7 +16,7 @@ links:
   relation: related
   kb: pyrite
 importance: 5
-kind: bug
+kind: tech_debt
 status: in_progress
 priority: high
 effort: S

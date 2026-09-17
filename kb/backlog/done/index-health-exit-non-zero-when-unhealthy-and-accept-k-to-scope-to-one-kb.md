@@ -9,10 +9,11 @@ tags:
 - silent-failure
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: medium
 effort: S
 rank: 0
+github_issue: 18
 ---
 
 ## Problem
@@ -28,3 +29,7 @@ Note stdout is clean JSON; warnings go to stderr. Do not regress that.
 1. Exit 1 when status is unhealthy (consider `--no-fail` for the old behavior).
 2. Add `-k/--kb` to scope every check to one KB.
 3. Test both: unhealthy fixture -> exit 1; `-k` excludes another KB's problems.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #18 (https://github.com/markramm/pyrite/issues/18) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

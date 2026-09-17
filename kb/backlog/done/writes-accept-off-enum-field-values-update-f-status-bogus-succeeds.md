@@ -9,10 +9,11 @@ tags:
 - programmatic-validation
 importance: 5
 kind: bug
-status: proposed
+status: superseded
 priority: high
 effort: M
 rank: 0
+github_issue: 14
 ---
 
 ## Problem
@@ -46,3 +47,7 @@ migrations.
 
 Related: [[schema-constraints-in-mcp-and-rest]] (surfacing constraints to agents),
 [[qa-validate-enforce-type-rubrics]], [[core-types-silently-drop-unknown-frontmatter-keys]].
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #14 (https://github.com/markramm/pyrite/issues/14) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

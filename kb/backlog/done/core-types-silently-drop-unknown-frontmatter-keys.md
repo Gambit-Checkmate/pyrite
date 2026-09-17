@@ -3,7 +3,7 @@ id: core-types-silently-drop-unknown-frontmatter-keys
 type: backlog_item
 title: "NoteEntry and CollectionEntry silently drop unknown frontmatter keys; only GenericEntry and TaskEntry preserve them"
 kind: bug
-status: proposed
+status: superseded
 priority: high
 effort: M
 created: "2026-09-16"
@@ -15,6 +15,7 @@ links:
 - target: bug-pyrite-silent-index-failure
   relation: related
   kb: pyrite
+github_issue: 15
 ---
 
 ## Problem
@@ -133,3 +134,7 @@ Second instance the same day: closing `api-authorization-coverage-test` with
 Acceptance addition: a round-trip test over **every registered entry type
 (core and plugin)** — load a file with an unknown top-level key, save, assert
 the key survives. Same shape as the MCP dispatch smoke test.
+
+## Superseded 2026-09-17
+
+Tracked as GitHub issue #15 (https://github.com/markramm/pyrite/issues/15) under ADR-0033: bugs live in GitHub, the KB holds the roadmap. This file stays so links resolve; do not update it here.

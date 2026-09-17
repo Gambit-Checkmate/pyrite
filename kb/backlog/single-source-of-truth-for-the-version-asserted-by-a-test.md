@@ -7,7 +7,7 @@ tags:
 - packaging
 - programmatic-validation
 importance: 5
-kind: bug
+kind: improvement
 status: in_progress
 priority: high
 effort: S
