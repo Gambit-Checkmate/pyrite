@@ -146,17 +146,34 @@ is silent over-permission.
 ### 3. Frontends are scoped clients, and there will be more than two
 
 A frontend is characterized by the audience it serves and the domain
-vocabulary it speaks. The known instances:
+vocabulary it speaks. The named artifacts:
 
-| Client | Audience | Domain | Run execution |
-|---|---|---|---|
-| Operator workspace | single trusted user | generic KB | yes (ADR-0030) |
-| Public reader | anonymous, untrusted | generic KB | no |
-| Shared instance | authenticated peers | generic KB + sharing | no |
-| Software workspace | trusted colleagues | software-kb vocabulary | operator-dependent |
+| Artifact | Audience | Domain | Ships with | Run execution |
+|---|---|---|---|---|
+| `pyrite-core-ui` | — (library) | — | consumed by the rest | — |
+| `pyrite-desktop` | single trusted user | generic KB | **pyrite itself** | yes (ADR-0030) |
+| `pyrite-software` | trusted colleagues | software-kb vocabulary | `pyrite-software-kb` | operator-dependent |
+| `pyrite-ji` | journalists, peers | investigation vocabulary | `pyrite-journalism-investigation` | no |
 
-The first two are near-term; the second two are directions. The point of the
-decision is that adding a fifth should require no architectural change.
+`pyrite-desktop` names the *installed application* — which carries the ACP
+subprocess and local-filesystem assumptions in the name, and makes the
+contrast with any hosted surface explicit rather than inferred.
+
+**Naming collision, deliberate but not free.** `pyrite-software-kb` and
+`pyrite-journalism-investigation` are existing Python distributions. Domain
+UI names sit on top of them. Per §5 the UI ships *inside* those
+distributions, so this is one product with two halves rather than two
+artifacts sharing a prefix — but the npm/PyPI split means that is a
+convention, not something the packaging enforces.
+
+**No public-reader entry.** The ADR-0023 `/site/` cache remains the public
+read surface for now; whether a client-side reader supersedes it is open
+question 1. A shared journalist instance (untrusted-ish peers, per-user
+BYOK, cross-org KB sharing) is a *deployment* of `pyrite-ji` under §2 grants,
+not a fifth artifact.
+
+The point of the decision is that adding a fifth should require no
+architectural change.
 
 ### 4. `pyrite-core-ui`: the shared library becomes addressable
 
@@ -174,19 +191,53 @@ to `/api/*` far more than it needs Svelte components, and that package is
 smaller, has no framework coupling, and lets non-Svelte clients participate.
 Extract components only when a second real consumer exists.
 
-### 5. Plugins gain a frontend contribution point
+### 5. UI contribution is separable for the base app, bound for domains
 
 Symmetric with the plugin protocol's 18 backend extension points, a plugin
 should be able to contribute UI: type-specific renderers, domain routes,
-board configurations. `software-kb` is the proving case — if a software team
-gets a recognizable project tool rather than a generic entry browser, the
-contract works.
+board configurations. `software-kb` is the proving case — 10 entry types and
+23 `sw_*` tools with no UI of its own is the gap, not a design.
+
+**The separability rule is asymmetric, and the asymmetry is about who
+installs:**
+
+- **`pyrite-desktop` UI must be separable from any extension.** It ships with
+  pyrite and is the base application — its UI exists before any extension
+  does, so it cannot be bound to one.
+- **`pyrite-software` and `pyrite-ji` UI are bound to their extension.**
+  Someone installing `pyrite-software-kb` wants the board and the ADR views,
+  not a generic entry browser. Shipping the plugin without its UI delivers
+  exactly what is wrong today.
+
+Stated as a rule: **the base UI is a product; domain UIs are part of their
+extension.** Extensions already declare themselves per-distribution via
+`[project.entry-points."pyrite.plugins"]`, so a bound UI is the same
+distribution additionally declaring a UI contribution.
 
 **This inherits a lesson from `plugin-type-resolution-scoping`,** where
 global, discovery-ordered type remapping resolved `person` differently on
 different machines. Any UI contribution point must be **scoped and declared**
 — by KB type, per ADR-0029 libraries — never a global registry whose winner
 depends on load order.
+
+**The hard part is version coupling, and it is unresolved.** If domain UI
+ships inside a Python wheel, compiled JS travels in that wheel and must match
+the `pyrite-core-ui` major the host app was built against. That is the
+`mcp<2.0.0` pin problem one layer up: an unbounded compatibility claim
+between separately-released artifacts. Three shapes, none chosen:
+
+1. **Declarative contribution** — a manifest describing views over generic
+   `pyrite-core-ui` components. No compiled JS in the wheel, no Svelte
+   version coupling, limited expressiveness. Probably right for most domain
+   UI, and the only option that keeps the wheel framework-neutral.
+2. **Prebuilt against a pinned `pyrite-core-ui` major** — full
+   expressiveness, real coupling, and a matrix problem the day two extensions
+   pin different majors.
+3. **Source shipped, host builds at install** — maximum flexibility, requires
+   a Node toolchain at install time in an otherwise-Python deployment.
+
+This is the crux of open question 4 and likely determines whether §5 is
+tractable at all.
 
 ## Consequences
 
@@ -240,9 +291,15 @@ depends on load order.
 3. **Is `pyrite-core-ui` published, or vendored?** A monorepo workspace
    package with no npm publish avoids the semver obligation while still
    allowing two apps. It also blocks genuine third-party frontends.
-4. **How does a plugin UI contribution actually work** in a compiled
-   SvelteKit app — build-time registration, dynamic import, or a manifest the
-   app reads at runtime? This may be the hardest part of §5 and is unresolved.
+4. **Which of §5's three contribution shapes?** Declarative manifest,
+   prebuilt-against-a-pinned-major, or source-built-at-install. This
+   determines whether a domain UI can ship inside a Python wheel at all, and
+   whether `pyrite-core-ui` takes on a compatibility obligation to
+   third-party extensions rather than only to first-party apps. Declarative
+   is the only shape that avoids both the Svelte version coupling and a Node
+   toolchain at install time, so the real question is whether it is
+   expressive enough for a kanban board and an ADR browser — which
+   `pyrite-software` would answer empirically.
 5. **Does the shared instance run a different backend** (fewer routers
    mounted, `RunService` never constructed), or the same backend with grants
    doing the work? §2 says grants. §1's "the API is the only boundary" is
