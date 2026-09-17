@@ -973,13 +973,28 @@ class PyriteMCPServer:
         )
         return {"count": len(tasks), "tasks": tasks}
 
+    def _resolve_task_kb(
+        self, task_id: str, kb_name: str | None
+    ) -> tuple[str, dict[str, Any] | None]:
+        """Resolve the KB a task lives in. Returns (kb_name, error).
+
+        The task-graph service methods need a concrete kb_name, but the tool
+        schemas make it optional, so look the task up when it is omitted.
+        """
+        task = self.task_svc.get_task(task_id, kb_name)
+        if not task:
+            return "", _error("NOT_FOUND", f"Task '{task_id}' not found")
+        return kb_name or task.get("kb_name", ""), None
+
     def _task_subtree(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get all descendants of a task."""
         task_id = args.get("task_id")
         if not task_id:
             return _error("MISSING_PARAMETER", "task_id is required")
-        kb_name = args.get("kb_name") or self._find_task_kb(task_id)
-        result = self._task_svc.get_subtree(task_id, kb_name)
+        kb_name, err = self._resolve_task_kb(task_id, args.get("kb_name"))
+        if err:
+            return err
+        result = self.task_svc.get_subtree(task_id, kb_name)
         return {"task_id": task_id, "count": len(result), "subtree": result}
 
     def _task_ancestors(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -987,8 +1002,10 @@ class PyriteMCPServer:
         task_id = args.get("task_id")
         if not task_id:
             return _error("MISSING_PARAMETER", "task_id is required")
-        kb_name = args.get("kb_name") or self._find_task_kb(task_id)
-        result = self._task_svc.get_ancestors(task_id, kb_name)
+        kb_name, err = self._resolve_task_kb(task_id, args.get("kb_name"))
+        if err:
+            return err
+        result = self.task_svc.get_ancestors(task_id, kb_name)
         return {"task_id": task_id, "count": len(result), "ancestors": result}
 
     def _task_blocked_by(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -996,8 +1013,10 @@ class PyriteMCPServer:
         task_id = args.get("task_id")
         if not task_id:
             return _error("MISSING_PARAMETER", "task_id is required")
-        kb_name = args.get("kb_name") or self._find_task_kb(task_id)
-        result = self._task_svc.get_blocked_by(task_id, kb_name)
+        kb_name, err = self._resolve_task_kb(task_id, args.get("kb_name"))
+        if err:
+            return err
+        result = self.task_svc.get_blocked_by(task_id, kb_name)
         return {"task_id": task_id, "count": len(result), "blocked_by": result}
 
     def _task_critical_path(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -1005,8 +1024,10 @@ class PyriteMCPServer:
         task_id = args.get("task_id")
         if not task_id:
             return _error("MISSING_PARAMETER", "task_id is required")
-        kb_name = args.get("kb_name") or self._find_task_kb(task_id)
-        result = self._task_svc.critical_path(task_id, kb_name)
+        kb_name, err = self._resolve_task_kb(task_id, args.get("kb_name"))
+        if err:
+            return err
+        result = self.task_svc.critical_path(task_id, kb_name)
         return {"task_id": task_id, "chain_length": len(result), "critical_path": result}
 
     def _task_status(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -1214,8 +1235,13 @@ class PyriteMCPServer:
         action = args.get("action")
 
         if action == "discover":
-            discovered = self.config.auto_discover_kbs()
-            return {"discovered": len(discovered), "kbs": [str(p) for p in discovered]}
+            from ..config import auto_discover_kbs
+
+            discovered = auto_discover_kbs()
+            return {
+                "discovered": len(discovered),
+                "kbs": [{"name": kb.name, "path": str(kb.path)} for kb in discovered],
+            }
         elif action == "validate":
             kb_name = args.get("kb_name")
             if not kb_name:

@@ -16,7 +16,7 @@ links:
   kb: pyrite
 importance: 5
 kind: improvement
-status: proposed
+status: done
 priority: high
 effort: S
 rank: 0

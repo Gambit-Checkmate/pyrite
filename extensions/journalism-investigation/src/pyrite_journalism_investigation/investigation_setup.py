@@ -9,7 +9,9 @@ from typing import Any
 
 from pyrite.schema import generate_entry_id
 
-from .queries import ENTITY_TYPE_ALIASES, query_claims, query_entities, query_sources, query_timeline
+from .queries import (
+    ENTITY_TYPE_ALIASES,
+)
 from .utils import parse_meta
 
 
@@ -36,6 +38,14 @@ def create_investigation(
     """
     if not title.strip():
         return {"error": "Investigation title is required"}
+    # Without this the insert below dies on the entry->kb foreign key and the
+    # caller sees a raw IntegrityError instead of being told which KB is missing.
+    if db.get_kb_stats(kb_name) is None:
+        return {
+            "error": f"KB '{kb_name}' not found",
+            "error_code": "NOT_FOUND",
+            "suggestion": "Pass kb_name, or create an investigation KB first",
+        }
 
     entry_id = generate_entry_id(title)
 
@@ -50,16 +60,18 @@ def create_investigation(
 
     body = "\n".join(body_parts)
 
-    db.upsert_entry({
-        "id": entry_id,
-        "kb_name": kb_name,
-        "title": title,
-        "entry_type": "note",
-        "body": body,
-        "importance": 8,
-        "tags": ["investigation"],
-        "metadata": {"investigation_status": "active"},
-    })
+    db.upsert_entry(
+        {
+            "id": entry_id,
+            "kb_name": kb_name,
+            "title": title,
+            "entry_type": "note",
+            "body": body,
+            "importance": 8,
+            "tags": ["investigation"],
+            "metadata": {"investigation_status": "active"},
+        }
+    )
 
     result: dict[str, Any] = {"created": entry_id, "title": title}
 
@@ -72,14 +84,16 @@ def create_investigation(
             if not ent_name:
                 continue
             ent_id = generate_entry_id(ent_name)
-            db.upsert_entry({
-                "id": ent_id,
-                "kb_name": kb_name,
-                "title": ent_name,
-                "entry_type": ent_type,
-                "importance": 5,
-                "tags": ["investigation"],
-            })
+            db.upsert_entry(
+                {
+                    "id": ent_id,
+                    "kb_name": kb_name,
+                    "title": ent_name,
+                    "entry_type": ent_type,
+                    "importance": 5,
+                    "tags": ["investigation"],
+                }
+            )
             entities_created.append({"id": ent_id, "title": ent_name, "type": ent_type})
         result["entities_created"] = entities_created
 
@@ -126,11 +140,13 @@ def build_investigation_status(
         status = meta.get("claim_status", "unverified")
         claim_breakdown[status] = claim_breakdown.get(status, 0) + 1
         if status == "unverified":
-            unverified_claims.append({
-                "id": r.get("id", ""),
-                "title": r.get("title", ""),
-                "importance": int(r.get("importance", 5)),
-            })
+            unverified_claims.append(
+                {
+                    "id": r.get("id", ""),
+                    "title": r.get("title", ""),
+                    "importance": int(r.get("importance", 5)),
+                }
+            )
 
     # Count sources
     source_results = db.list_entries(kb_name=kb_name, entry_type="document_source", limit=10000)

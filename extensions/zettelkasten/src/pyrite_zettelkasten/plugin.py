@@ -146,13 +146,11 @@ class ZettelkastenPlugin:
         kb_name = args.get("kb_name")
 
         try:
-            results = db.search("*", limit=500)
+            # list, not search: "*" is not a valid FTS5 query, so this raised
+            # on every call.
+            results = db.list_entries(kb_name=kb_name, entry_type="zettel", limit=500)
             inbox = []
             for r in results:
-                if r.get("entry_type") != "zettel":
-                    continue
-                if kb_name and r.get("kb_name") != kb_name:
-                    continue
                 meta = r.get("metadata") or {}
                 if isinstance(meta, str):
                     try:

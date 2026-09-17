@@ -28,6 +28,12 @@ def cross_kb_search(
     Returns:
         Dict with query, total_count, and groups (list of {kb_name, count, results})
     """
+    # db.search takes raw FTS5: an unquoted hyphen ("smoke-test") parses as a
+    # column filter and raises "no such column". Same sanitizer kb_search uses.
+    from pyrite.services.search_service import SearchService
+
+    query = SearchService.sanitize_fts_query(query)
+
     if kb_names:
         # Search each specified KB separately and combine
         all_results: list[dict[str, Any]] = []
@@ -55,11 +61,13 @@ def cross_kb_search(
 
     groups = []
     for kb_name, results in sorted(by_kb.items()):
-        groups.append({
-            "kb_name": kb_name,
-            "count": len(results),
-            "results": results,
-        })
+        groups.append(
+            {
+                "kb_name": kb_name,
+                "count": len(results),
+                "results": results,
+            }
+        )
 
     total_count = sum(g["count"] for g in groups)
 
@@ -94,7 +102,7 @@ def correlate_results(
         by_title[key].append(r)
 
     groups = []
-    for title_key, entries in by_title.items():
+    for entries in by_title.values():
         # Use the original-case title from the first entry
         title = entries[0].get("title", "")
         kb_names = {e.get("kb_name", "") for e in entries}
@@ -102,19 +110,23 @@ def correlate_results(
 
         appearances = []
         for e in entries:
-            appearances.append({
-                "id": e.get("id", ""),
-                "kb_name": e.get("kb_name", ""),
-                "entry_type": e.get("entry_type", ""),
-                "importance": int(e.get("importance", 5)),
-            })
+            appearances.append(
+                {
+                    "id": e.get("id", ""),
+                    "kb_name": e.get("kb_name", ""),
+                    "entry_type": e.get("entry_type", ""),
+                    "importance": int(e.get("importance", 5)),
+                }
+            )
 
-        groups.append({
-            "title": title,
-            "kb_count": len(kb_names),
-            "max_importance": max_importance,
-            "appearances": appearances,
-        })
+        groups.append(
+            {
+                "title": title,
+                "kb_count": len(kb_names),
+                "max_importance": max_importance,
+                "appearances": appearances,
+            }
+        )
 
     # Sort by kb_count descending, then by max_importance descending
     groups.sort(key=lambda g: (g["kb_count"], g["max_importance"]), reverse=True)
