@@ -583,6 +583,47 @@ class PluginRegistry:
                     logger.warning("Plugin %s %s failed: %s", plugin.name, method_name, e)
         return result
 
+    def _aggregate_dict_for_kb(self, method_name: str, kb_type: str) -> dict:
+        """Aggregate dict results from plugins matching a KB type.
+
+        Insertion order follows plugin discovery order, which is
+        filesystem-dependent (importlib.metadata enumerates site-packages).
+        Callers that pick a "first match" out of the result MUST therefore
+        scope by kb_type, or their answer varies by machine -- see
+        get_all_entry_types_for_kb.
+        """
+        self.discover()
+        result: dict = {}
+        for plugin in self._plugins.values():
+            if not self._plugin_matches_kb_type(plugin, kb_type):
+                continue
+            if not hasattr(plugin, method_name):
+                continue
+            try:
+                items = getattr(plugin, method_name)()
+            except Exception as e:
+                logger.warning("Plugin %s %s failed: %s", plugin.name, method_name, e)
+                continue
+            if items:
+                result.update(items)
+        return result
+
+    def get_all_entry_types_for_kb(self, kb_type: str = "") -> dict[str, type]:
+        """Entry types contributed by plugins active for this KB type.
+
+        The unscoped get_all_entry_types() returns every installed plugin's
+        types regardless of which KB is being written to. That is correct for
+        the factory (it must be able to build any declared type) but wrong
+        for type *resolution*, where picking the first subclass of a core
+        type out of a globally-merged dict makes the answer depend on
+        site-packages enumeration order. Concretely: both cascade's `actor`
+        and social's `user_profile` subclass PersonEntry, so `person`
+        resolved to whichever plugin happened to be discovered first --
+        `actor` on one machine, `user_profile` on another, for the same code.
+        See plugin-type-resolution-scoping.
+        """
+        return self._aggregate_dict_for_kb("get_entry_types", kb_type)
+
     def get_validators_for_kb(self, kb_type: str = "") -> list[Callable]:
         """Get validators scoped to a specific KB type."""
         return self._aggregate_list_for_kb("get_validators", kb_type)

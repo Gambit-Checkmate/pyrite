@@ -178,12 +178,29 @@ class KBService:
                 return result
         return None
 
-    def _resolve_entry_type(self, entry_type: str) -> str:
+    def _resolve_entry_type(self, entry_type: str, kb_type: str = "") -> str:
         """Resolve a generic core type to a plugin subtype if one exists.
 
-        If a plugin provides a type that subclasses the core type for the
-        given name, prefer the plugin type.  E.g. "event" -> "timeline_event"
-        when the Cascade plugin registers TimelineEventEntry(EventEntry).
+        If a plugin ACTIVE FOR THIS KB provides a type that subclasses the
+        core type for the given name, prefer the plugin type. E.g.
+        "event" -> "timeline_event" in a cascade-timeline KB, because the
+        Cascade plugin registers TimelineEventEntry(EventEntry) and declares
+        cascade-timeline in get_kb_types().
+
+        Scoping by kb_type is load-bearing, not an optimization. Resolution
+        picks the FIRST subclass found, and the unscoped registry dict is
+        ordered by plugin discovery, which follows site-packages enumeration
+        and therefore varies between machines. Both cascade's `actor` and
+        social's `user_profile` subclass PersonEntry, so an unscoped
+        `person` resolved to `actor` on one host and `user_profile` on
+        another for identical code -- with the wrong answer silently written
+        to disk. It also meant installing an unrelated extension rewrote
+        types in every KB (the tutorial-KB `undeclared_types` symptom).
+        See plugin-type-resolution-scoping.
+
+        An empty kb_type means "no KB context", which matches every plugin
+        and preserves the previous global behavior for callers that have no
+        KB in hand.
         """
         from ..models.core_types import ENTRY_TYPE_REGISTRY
 
@@ -193,9 +210,27 @@ class KBService:
         try:
             from ..plugins import get_registry
 
-            for ptype_name, ptype_cls in get_registry().get_all_entry_types().items():
-                if ptype_name != entry_type and issubclass(ptype_cls, core_cls):
-                    return ptype_name
+            plugin_types = get_registry().get_all_entry_types_for_kb(kb_type)
+            # Even within one KB type several types can subclass the same
+            # core type (cascade declares cascade_event, solidarity_event and
+            # timeline_event, all EventEntry subclasses). Discovery order must
+            # not decide the winner, but neither may alphabetical order --
+            # that picks `cascade_event` over `timeline_event`, silently
+            # changing the type of every new entry in the 5,505-entry
+            # cascade-timeline KB. Prefer the MOST DERIVED class (longest
+            # MRO): TimelineEventEntry -> InvestigationEventEntry ->
+            # EventEntry beats a direct EventEntry subclass, because a deeper
+            # chain is a strictly more specific declaration of the same
+            # concept. Name is the final tiebreak so equal-depth candidates
+            # still resolve identically on every machine.
+            candidates = [
+                (name, cls)
+                for name, cls in plugin_types.items()
+                if name != entry_type and isinstance(cls, type) and issubclass(cls, core_cls)
+            ]
+            if candidates:
+                candidates.sort(key=lambda nc: (-len(nc[1].__mro__), nc[0]))
+                return candidates[0][0]
         except Exception:
             logger.warning("Plugin type resolution failed for %s", entry_type, exc_info=True)
         return entry_type
@@ -227,8 +262,10 @@ class KBService:
         if kb_config.read_only:
             raise KBReadOnlyError(f"KB is read-only: {kb_name}")
 
-        # Resolve generic core type to plugin subtype if one exists
-        entry_type = self._resolve_entry_type(entry_type)
+        # Resolve generic core type to plugin subtype if one exists, scoped
+        # to THIS KB's type so an unrelated installed extension can't rewrite
+        # the type (plugin-type-resolution-scoping).
+        entry_type = self._resolve_entry_type(entry_type, kb_config.kb_type)
 
         # Create appropriate entry type via factory
         entry = build_entry(entry_type, entry_id=entry_id, title=title, body=body, **kwargs)
@@ -306,8 +343,8 @@ class KBService:
                 body = spec.get("body", "")
                 entry_id = generate_entry_id(title)
 
-                # Resolve type
-                entry_type = self._resolve_entry_type(entry_type)
+                # Resolve type, scoped to this KB's type (see create_entry)
+                entry_type = self._resolve_entry_type(entry_type, kb_config.kb_type)
 
                 # Build extra kwargs
                 extra = {k: v for k, v in spec.items() if k not in ("entry_type", "title", "body")}
