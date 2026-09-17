@@ -1,8 +1,12 @@
 name: Publish to PyPI
 
+# Manual-only. This used to fire on `release: published`, but the `pyrite`
+# name on PyPI is held by a locked pre-2FA account (ADR-0025, amended
+# 2026-09-17), so an automatic run can only fail -- and would put a red X on
+# every GitHub release. Restore the release trigger once the name is recovered
+# or the package is published under a new one.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read

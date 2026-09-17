@@ -16,7 +16,7 @@ git merge dev
 # 5. Tag
 git tag -a v0.X.0 -m "v0.X.0: summary"
 git push && git push --tags
-# 6. Create GitHub release (triggers PyPI publish)
+# 6. Create GitHub release (does NOT publish to PyPI -- see note below)
 # 7. Switch back to dev and bump to next dev version
 git checkout dev
 # Edit pyproject.toml to 0.X+1.0.dev0
@@ -24,7 +24,7 @@ git commit -am "Bump version to 0.X+1.0.dev0"
 git push
 ```
 
-**PyPI**: triggered automatically by creating a GitHub release from a tag.
+**PyPI**: not reachable. The `pyrite` name is held by a locked pre-2FA account (ADR-0025, amended 2026-09-17), so `publish.yml` is `workflow_dispatch`-only and a GitHub release publishes nothing. Install path is `pip install git+https://github.com/markramm/pyrite@<tag>`.
 
 ## Deploying
 
@@ -64,4 +64,4 @@ For urgent fixes to a release:
 | `demo.pyrite.wiki` | `dev` HEAD | Auto on CI pass |
 | `capturecascade.org` | `main` tag | Manual via `deploy.sh cascade` |
 | `pyrite.ink` | `main` tag | Manual via `deploy.sh ink <tag>` |
-| PyPI | GitHub release from `main` tag | Auto on release publish |
+| PyPI | — | Unreachable (locked account); `publish.yml` is manual-only |
