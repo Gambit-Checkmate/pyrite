@@ -35,6 +35,7 @@ def _plain(text: str) -> str:
     """Help output with ANSI escape sequences removed."""
     return _ANSI.sub("", text)
 
+
 # (argv-prefix, ...) for commands that should expose -k / --kb.
 _KB_FLAG_COMMANDS = [
     ["search", "--help"],
