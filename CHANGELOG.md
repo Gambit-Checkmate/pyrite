@@ -5,6 +5,160 @@ All notable changes to Pyrite will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - UNRELEASED (draft — see "Release checklist" at the end of this section)
+
+Five months of work across 226 commits (158 substantive, 68 KB/docs), from
+2026-04-06 to 2026-09-17. Versions 0.21–0.24 were tagged without CHANGELOG
+entries; this section covers everything since v0.24.0 and is the first
+release note written since 0.20.0.
+
+**No PyPI wheel.** The `pyrite` name on PyPI is held by a pre-2FA account
+that is locked; `publish.yml` has never fired and no GitHub release exists.
+Install from source or, once tagged, `pip install git+https://github.com/markramm/pyrite@v0.25.0`.
+
+### Highlights
+
+- **Error handling became a contract** — typed domain errors, a central REST
+  exception handler, and a CLI-wide sweep converting every ad-hoc error site
+  to a shared helper. Tracebacks no longer leak from CLI commands.
+- **Fail-closed sweep** — auth tokens, plugin compatibility checks, index
+  drift detection, and push failures stopped converting failure into false
+  success at trust boundaries.
+- **Index correctness** — read-back verification on rename, content-hash
+  staleness detection, DB-registered KBs enumerated in every health loop,
+  and warnings for undeclared types and missing `type:` frontmatter.
+- **Plugin capability declarations** (ADR-0002 addendum) and **per-entity-type
+  state machines** (ADR-0027).
+- **KB-type-scoped entry-type resolution** — fixes a per-machine
+  nondeterminism where the same code resolved `person` differently depending
+  on site-packages enumeration order.
+- **White-label branding** across site-cache, web frontend, KB export, and
+  MCP prompts.
+- **Three community contributions** — first outside PRs to the project.
+
+### Added
+
+- **Task workflow**
+  - `pyrite task reset` releases stale claims back to `open`
+  - `cancelled` terminal state for obsolete tasks
+  - `--comment` flag records why a status transition happened
+  - `--reason` / `status_reason` field for relaxed-mode transitions
+  - `GET /api/tasks` and a human worklist board at `/tasks`
+  - Per-entity-type `state_machine` config with `migrate-relaxed-mode` CLI (ADR-0027)
+- **Search & index**
+  - `--status` filter wired through CLI, service, all backends, and MCP
+  - OR-relax on zero-hit keyword queries to fix brittle recall
+  - Observability trace: mode, fallback reason, and latency logged per query
+  - Stderr warning when the index is stale, naming the affected KBs
+  - `pyrite qa coverage` curation statistics
+  - `pyrite rename` for same-KB entry rename with wikilink rewrite
+- **Plugins & backends**
+  - `BackendCapability` enum with method-capability dispatch
+  - Plugin capability declarations with dispatch-skip (ADR-0002 addendum)
+  - `HookRunner` extracted as a peer service; `KBService` delegates to it
+- **Branding & publication**
+  - `BrandingService` with public `/config/branding` and `/branding/{file}`
+  - White-label branding in web frontend, site-cache, KB export footer, MCP prompt
+  - `sitemap.xml`, `robots.txt`, and complete SEO meta on entry pages
+- **Quotas & AI**
+  - Per-user LLM usage tracking (`llm_usage` table, REST endpoints)
+  - `QuotaService.check_llm_quota`, wired into AI endpoints with tier resolution
+  - Anthropic prompt-caching surface on `LLMService`
+  - Configurable, visible embedding body truncation
+- **CI**
+  - Frontend and Playwright e2e jobs
+  - pgvector-enabled postgres service exercising both backends
+  - mypy strict-ratchet scaffold for `pyrite/storage/`
+- **Web**
+  - Entry comments panel and submit-for-review flow
+  - `fips` and `state` as promoted entry columns with search filters
+
+### Fixed
+
+- **Index & storage**
+  - `index sync` silently skipping modified files
+  - Frontmatter delimiter matching inside quoted values; wikilink extractor
+    counting code fences and path-like targets as broken links
+  - Read-back index verification on rename, hard error on drift
+  - Content-hash staleness detection in `check_health()`
+  - DB-registered (`kb add`) KBs now indexed by `sync`/`build` and enumerated
+    in staleness/health/stats/edge-type loops (#2)
+  - Metadata clobbering on partial update; metadata threaded through REST
+  - Deliberate subdirectory preserved on update instead of relocating to the
+    type default
+  - `EventEntry` serializes `actors`, not `participants`
+- **Fail-closed / error handling**
+  - Auth fails closed on undecryptable GitHub tokens and API keys
+  - Plugin KB-type compatibility check fails closed
+  - Real push failures no longer masked as "No remote configured"
+  - Invalid-status drift detector and references-extraction fallback now warn
+    instead of degrading silently
+  - FTS5 syntax errors classified as `QUERY_SYNTAX`, not `INTERNAL`
+  - FTS5 terms quoted in `links suggest`/`discover` (fixed `links orphans` crash)
+  - Malformed frontmatter, illegal task transitions, and undeclared types
+    surface as clean errors rather than tracebacks
+  - Malformed files collected as a sync summary instead of traceback spew
+- **Type resolution**
+  - Entry-type resolution scoped by KB type; most-derived-class tiebreak.
+    Previously the first plugin subclass in discovery order won, so `person`
+    resolved to `actor` or `user_profile` depending on the host's
+    site-packages enumeration (`plugin-type-resolution-scoping` item 1)
+- **Auth & web**
+  - OAuth CSRF state moved from an in-memory dict to the DB (survives restart)
+  - KB store loads after auth init, preventing 401s on protected instances
+  - Entry page scroll broken by nested overflow containers
+  - Search crash on entries sharing an ID across KBs
+  - Checkbox field widget on the new-entry form
+  - Daily-notes navigation no longer performs a write for read-tier users
+- **Concurrency & tests**
+  - `IndexWorker` thread-leak flake root-caused
+  - `GitService` subprocess env isolated from a parent git process
+  - N-process concurrency race test for the task-claim CAS
+
+### Changed
+
+- CLI error sites converted to a shared `cli_error` helper across all command
+  modules; `task status` renamed to `task get`
+- `pyrite mcp --tier` flag implemented (previously documented but absent)
+- Static renderer path deprecated in favor of the site cache
+- `--include-body` contract locked; stdout stays pure JSON in `-f json` mode
+- Backlog status vocabulary normalized and enforced at index time
+
+### Security
+
+- Web clipper SSRF defense: private, loopback, and link-local IPs blocked
+
+### Community contributions
+
+First outside PRs to the project, all from **Ruslan Terekhov (@AsyncLegs)**:
+
+- **#3** — MCP SSE endpoint: pinned `mcp>=1.0.0,<2.0.0` (a fresh install was
+  resolving 2.2.0, two majors past the 1.x `Server` API `build_sdk_server()`
+  uses) and fixed a doubled `/mcp/mcp/messages/` path where the SSE transport
+  was constructed with an endpoint that already included its mount prefix
+- **#4** — KB created via `POST /api/kbs` was invisible to entry creation
+  until restart: `add_kb()` wrote to the DB without updating the in-process
+  `_db_kb_cache`
+- **#5** — `EmbeddingService.prewarm()` was never called despite
+  `PYRITE_PREWARM_EMBEDDINGS=true`; `/health`'s `embeddings.ready` stayed
+  permanently false
+
+### Release checklist (before tagging)
+
+- [ ] CI green on `dev` — first green run required; see below
+- [ ] Reconcile the `[Unreleased]` section below: it describes static-site
+      and web-UI work that may predate v0.24.0. Merge what shipped in this
+      cycle into the sections above and delete the rest, or retitle it if it
+      is genuinely unreleased.
+- [ ] Bump `version` in `pyproject.toml` from 0.24.0 to 0.25.0
+- [ ] Tag `v0.25.0` and create the **GitHub release** (none exist; this is
+      both the `publish.yml` trigger and the only artifact anyone can pin to)
+- [ ] Update `pyrite-website` install instructions to reference the tag
+      rather than bare `main`
+- [ ] Correct the stale PyPI claims in `kb/designs/launch-staging.md:32`
+      (currently ticked `[x] pip install pyrite works`),
+      `launch-channels.md`, and `bhag-self-configuring-knowledge-infrastructure.md`
+
 ## [Unreleased]
 
 ### Added
