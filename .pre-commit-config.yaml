@@ -30,20 +30,33 @@ repos:
       # Linter
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        stages: [pre-commit]
       # Formatter
       - id: ruff-format
+        stages: [pre-commit]
 
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # `stages` is pinned on every hook: default_stages does not apply to hooks
+      # whose upstream manifest declares its own stages, and these fixers list
+      # pre-push there. Unpinned, they ran over the entire dev..main range on
+      # the v0.24.1 release push and aborted a CI-verified push over two
+      # missing newlines in old KB files. Pre-push runs pytest, nothing else.
       - id: trailing-whitespace
+        stages: [pre-commit]
       - id: end-of-file-fixer
+        stages: [pre-commit]
       - id: check-yaml
+        stages: [pre-commit]
       - id: check-added-large-files
         args: ['--maxkb=500']
+        stages: [pre-commit]
       - id: check-merge-conflict
+        stages: [pre-commit]
       - id: debug-statements
+        stages: [pre-commit]
 
   # Type checking (optional, can be slow)
   # Uncomment to enable:
@@ -64,6 +77,7 @@ repos:
         language: system
         pass_filenames: false
         files: '\.py$'
+        stages: [pre-commit]
       - id: pyrite-schema-validate
         name: Validate KB entries
         entry: bash -c 'P=.venv/bin/pyrite; [ -x "$P" ] || P=pyrite; exec "$P" schema validate --changed'

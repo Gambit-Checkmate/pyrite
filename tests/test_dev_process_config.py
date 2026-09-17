@@ -103,3 +103,18 @@ class TestCIWorkflow:
         # `test (3.12)` is the required status check on main (ADR-0025).
         matrix = str(ci["jobs"]["test"]["strategy"]["matrix"]["python-version"])
         assert "3.12" in matrix
+
+
+class TestPrePushStage:
+    def test_only_pytest_runs_at_pre_push(self, precommit):
+        # `default_stages` does NOT apply to hooks whose upstream manifest sets
+        # its own `stages` (the pre-commit-hooks fixers list pre-push). Left
+        # implicit, end-of-file-fixer ran over the whole dev..main range on the
+        # v0.24.1 release push, rewrote two old KB files, and aborted the push
+        # of a CI-verified commit. Every non-pytest hook must pin its stages.
+        offenders = [
+            hook["id"]
+            for hook in _hooks(precommit)
+            if "pytest" not in str(hook.get("entry", "")) and hook.get("stages") is None
+        ]
+        assert offenders == [], f"hooks relying on default_stages (pin `stages:`): {offenders}"

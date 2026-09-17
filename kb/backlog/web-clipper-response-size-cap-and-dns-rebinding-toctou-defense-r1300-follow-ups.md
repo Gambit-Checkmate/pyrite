@@ -27,4 +27,3 @@ Acceptance:
   - Allowlist test: with PYRITE_CLIP_ALLOWLIST=example.com, clipping example.org returns CLIPPER_BLOCKED_HOST.
 
 Effort: M. Should land before transparencycascade.org gates public clipper access.
-

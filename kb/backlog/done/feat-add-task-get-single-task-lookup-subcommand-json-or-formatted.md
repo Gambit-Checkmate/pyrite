@@ -27,4 +27,3 @@ The fix for the read-path bug (bug-task-status-single-item-json-read-...)
 now includes renaming `task status` → `task get` to match the convention
 this feature ticket asked for. So this feature's intent is fully covered
 by that bug's fix; no separate work needed.
-
