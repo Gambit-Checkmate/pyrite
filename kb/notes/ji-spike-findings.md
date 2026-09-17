@@ -7,7 +7,7 @@ author: markr
 date: "2026-07-04"
 tags: [journalism-investigation, spike, ftm, extensibility, findings, retrospective]
 links:
-- target: adr-0022-typed-relationship-entries-edge-entities
+- target: adr-0022
   relation: related
   kb: pyrite
 - target: plugin-type-resolution-scoping
