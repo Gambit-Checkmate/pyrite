@@ -269,3 +269,152 @@ the sibling at that moment)
 
 **Severity summary:** nothing blocked. One correctness trap (Friction 1) that a
 less-warned agent would have misdiagnosed as data loss.
+
+---
+
+## 2026-08-28 · reproduction of a phantom 258-entry integrity crisis · claude-sonnet-5
+
+Filed on assignment after a conductor session lost a full tick chasing what looked like 258
+high-importance canon entries missing `status:`. Root cause, diagnosed by a different worker
+earlier in the day: 36 `cascade-timeline` files were missing the `type:` field entirely. The
+corpus was fine; the index was wrong. This entry is the isolated reproduction plus a blast-radius
+scan, filed separately because a clean repro belongs in the tool's own feedback log, not buried in
+a KB's research-notes. See also `bug_pyrite_silent_index_failure` (2026-07-xx) — this is the
+second confirmed instance of "the index silently disagrees with the file on disk" in this corpus.
+
+---
+
+**Friction — missing `type:` silently drops `status:` from the SQL row, with no error, only a log
+line most invocations never see.**
+
+**Mechanism (read from source, not inferred):** `entry_from_frontmatter()` in
+`pyrite/models/core_types.py` (~line 419) checks `meta.get("type")`. When absent, it logs a
+warning and hardcodes `entry_type = "note"`, which resolves to `NoteEntry`. `NoteEntry` (same
+file, ~line 30) does not inherit `Statusable` and has no `status` field at all — only
+`EventEntry` (core) and plugin types like `pyrite_cascade.TimelineEventEntry` declare a `status`
+field and populate it from `meta.get("status", "confirmed")`. So a `type:`-less entry isn't
+merely misclassified — the parsed Python object structurally has nowhere to put `status`, and it
+is discarded before the SQL write, not nulled by the write.
+
+**Repro (isolated ephemeral KB `bugrepro-status-type`, deleted after use — no real KB touched):**
+
+```
+$ cat repro-missing-type.md
+---
+id: repro-missing-type
+title: BUGREPRO Missing type field test
+status: confirmed
+importance: 5
+---
+...
+
+$ ~/kb/kb index sync -k bugrepro-status-type
+Entry frontmatter missing 'type:' — falling back to 'note' (id=repro-missing-type,
+title=BUGREPRO Missing type field test, available_keys=['body', 'file_path', 'id',
+'importance', 'status', 'title'])
+Sync complete:
+  Added: 1
+  Updated: 0
+  Removed: 0
+  Embedded: 1
+
+$ sqlite3 -header -column ~/kb/index.db \
+  "SELECT id, entry_type, status, importance FROM entry WHERE kb_name='bugrepro-status-type';"
+id                  entry_type  status  importance
+------------------  ----------  ------  ----------
+repro-missing-type  note                5
+```
+
+Note `available_keys` in the warning line: `status` IS present in the parsed frontmatter dict at
+the point of the warning. It is dropped downstream, not upstream. `importance` (a base `Entry`
+field) survives; `status` (not a base field) does not.
+
+Same file, `type: event` added, nothing else changed:
+
+```
+$ ~/kb/kb index sync -k bugrepro-status-type
+Sync complete:
+  Added: 0
+  Updated: 1
+  Removed: 0
+
+$ sqlite3 -header -column ~/kb/index.db \
+  "SELECT id, entry_type, status, importance FROM entry WHERE kb_name='bugrepro-status-type';"
+id                  entry_type  status     importance
+------------------  ----------  ---------  ----------
+repro-missing-type  event       confirmed  5
+```
+
+No warning on the second sync, `entry_type` and `status` both correct. One field addition is the
+entire delta between "silently wrong" and "correct" — no schema violation, no parse error, nothing
+that would draw a human's eye to the file.
+
+**`index build -f` (forced full rebuild) — does it self-correct? Yes, in this repro.** Re-ran
+`~/kb/kb index build -k bugrepro-status-type -f --no-embed` against the corrected file (type:
+present) after the SQL row had gone stale from the earlier broken sync: the row corrected to
+`entry_type=event, status=confirmed`. A full rebuild fully re-parses every file rather than
+trusting any cached row, so once the *file* is fixed, `-f` reliably fixes the *row*. This means
+the incident's "index build -f did not visibly correct stale rows" symptom is likely NOT a defect
+in the forced-rebuild path itself — more probably a session-level issue (wrong KB targeted, output
+scrolled past, or a stale read before the rebuild's write committed). Flagging as unresolved rather
+than concluding rebuild is broken: I could not reproduce a case where `-f` failed to correct an
+already-fixed file.
+
+**Blast radius — `grep -L "^type:"` per KB, filtered to files that also carry `status:`
+(the exposed set — anything without `status:` isn't hit by this specific defect):**
+
+| KB | entries with `status:` present, `type:` absent |
+|---|---|
+| `drafts` | 22 |
+| `cascade-research` | 5 |
+| `book-drafts` | 1 |
+| `cascade-timeline` | 0 (2 raw `grep -L` hits are `README.md`/`_index.md`, not content) |
+| all other 48 registered KBs | 0 |
+
+28 entries across 3 KBs are silently mis-indexed for `status` right now, today, independent of the
+36 `cascade-timeline` files already fixed. `drafts` carries the most exposure — 22 files including
+several `architecture-0N-*.md` chapter pieces and `_published-archive/caesars-stablecoin-DRAFT.md`.
+Every one of these will show `status IS NULL` to any guard that filters on it (the title-figure
+check, the date-agreement check, the sourcing audit — all three shipped the same day this was
+diagnosed), with no error surfaced anywhere in that guard's own run.
+
+**Why it matters beyond this one incident:** a silent wrong answer is worse than a loud failure.
+The `type:`-less file is not malformed, doesn't error, doesn't warn unless something happens to be
+watching stderr on `index build -f` specifically (routine `index sync` prints the same warning,
+but nothing downstream reads or surfaces it — it is not part of any command's structured output,
+`-f json` included). A tool that silently drops a filtered-on field for a content-shaped subset of
+entries makes every downstream guard blind to exactly that subset, and the blindness looks
+identical to "these entries are clean" rather than "these entries were never checked."
+
+**Would have helped, in order of value:**
+
+1. **Make `status` (and any field a core/plugin type declares) survive the `note` fallback.**
+   The cleanest fix: `NoteEntry` (or the generic fallback path) should preserve unrecognized-but-
+   present frontmatter fields rather than silently dropping anything the target dataclass doesn't
+   declare. This is the actual defect — a type-detection failure cascading into a silent field-
+   level data loss for an unrelated field.
+2. **Surface the missing-`type:` warning in `-f json` output**, not just a logger line to stderr.
+   Every workflow in this corpus pipes JSON; a warning that only appears in unstructured stdout/
+   stderr text is invisible to any scripted absorption step.
+3. **A `kb validate` (or `index sync`) summary line**: `N entries indexed with fallback type
+   'note' — see stderr for ids`. One aggregate count would have caught this in the same tick the
+   36 files were originally written, instead of surfacing three weeks later as a 258-entry crisis
+   the conductor had to disprove by hand.
+
+**Severity:** blocked (not this session — the *incident* it explains cost a full conductor tick
+chasing a phantom integrity crisis; the underlying defect is currently live and unflagged in 28
+entries across `drafts`, `cascade-research`, and `book-drafts`)
+
+**Minor, adjacent observations (not the main finding, noted for completeness):**
+- `pyrite kb list -f json` is not a valid invocation (`-f` isn't a recognized option on `kb list`,
+  unlike most other subcommands) — had to parse `config.yaml` with `yaml.safe_load` instead.
+- `pyrite kb create --ephemeral` ignores an explicit `-p/--path` and always places the KB under
+  `~/.pyrite/repos/ephemeral/<name>`.
+- `pyrite kb remove <name>` refuses to remove a KB that is defined in `config.yaml`
+  (`PERMISSION_DENIED: ... cannot be removed via the registry`), even with `--force`; the only way
+  to deregister was hand-editing `config.yaml` directly, which is what the underlying registry
+  file *is*, making the guard read as protecting the file from itself.
+- Direct `DELETE FROM entry WHERE ...` against `index.db` raises `unsafe use of virtual table
+  "entry_fts"` — the `entry_fts` FTS5 virtual table cannot be touched outside the app's own
+  trigger-mediated write path, which ruled out a raw-SQL cleanup of the repro's row; `pyrite
+  delete <id> -k <kb>` was the working path once the KB was (temporarily) re-registered.
