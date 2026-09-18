@@ -190,6 +190,18 @@ GitHub — when working toward a release, check `gh issue list --milestone` and
   `[Unreleased]` discipline asserted by the test.
 - Session setup script (worktree + venv + hooks) so ADR-0032's one-branch-per-
   session rule is one command.
+- **Every interface has an end-to-end test in CI** (added 2026-09-17):
+  - REST and MCP over SSE — the live-server ticket above.
+  - **MCP over stdio** — spawn `pyrite mcp`, `initialize`, `tools/list`, call
+    `kb_search`; this is the transport Claude Desktop and Claude Code use, and
+    nothing exercises it today (the dispatch smoke test is in-process).
+    Folded into the live-server ticket's acceptance.
+  - **CLI** — [[ci-run-getting-started-tutorial]] (medium, S): the Getting
+    Started tutorial runs as a CI job against the installed package.
+  - **Web** — [[playwright-e2e-suite-non-deterministic-failures-likely-shared-state-auth-config-gap]]
+    (high, M): make Playwright deterministic and blocking. Root cause still
+    unconfirmed; if it proves large it slips to 0.25, and that is the only
+    item on this list allowed to.
 
 ### Workstream 2 — Bugs (GitHub milestone `0.24.2`)
 
@@ -234,10 +246,8 @@ packaged. The item set is re-chosen when 0.24.2 ships, from:
 [[epic-shared-instance-readiness]]; the web first-visit fixes
 ([[web-kb-context-single-authority]], [[web-fix-dropped-kb-seams]],
 [[web-sidebar-ia-regroup]], [[web-graph-default-scope-and-guards]],
-[[web-light-mode-chrome-repair]]); Playwright made deterministic and blocking
-([[playwright-e2e-suite-non-deterministic-failures-likely-shared-state-auth-config-gap]]);
-[[oauth-state-store-persistence]]; the hosting-security static audit; the
-invite doc.
+[[web-light-mode-chrome-repair]]); [[oauth-state-store-persistence]]; the hosting-security static audit; the
+invite doc. (Playwright moved to 0.24.2.)
 
 ---
 

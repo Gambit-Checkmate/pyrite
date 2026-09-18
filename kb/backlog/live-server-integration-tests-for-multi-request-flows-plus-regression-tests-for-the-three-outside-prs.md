@@ -45,3 +45,18 @@ Same family as the MCP dispatch smoke test (done).
 - [ ] Each of the three PR bugs, reintroduced, fails a test.
 
 Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health). Related: [[ci-run-getting-started-tutorial]].
+
+## Scope added 2026-09-17: MCP over stdio
+
+The SSE flow above covers the server transport. Claude Desktop and Claude Code
+use **stdio**: `pyrite mcp` as a subprocess speaking JSON-RPC on stdin/stdout.
+Nothing exercises that path end to end (`tests/test_mcp_tool_dispatch_smoke.py`
+calls handlers in-process). Add to acceptance:
+
+- [ ] Spawn `pyrite mcp` (from the installed package, not the checkout), send
+      `initialize`, `tools/list`, and a `kb_search` call against a temp KB;
+      assert the tool list matches `tool_schemas.py` for the configured tier
+      and the search returns the seeded entry.
+- [ ] Same over SSE, so the two transports are asserted against each other.
+
+Roadmap: 0.24.2 workstream 1, "every interface has an end-to-end test in CI".
