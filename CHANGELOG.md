@@ -9,8 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
 
+### Added
+
+- `auto_embed` setting (`PYRITE_AUTO_EMBED=0` to disable): embed entries on
+  write, on by default. Off means keyword search only, no torch import and no
+  model download on the write path; `pyrite index embed` backfills later. The
+  first half of #13 (first write on a fresh install blocked on the download).
+
 ### Changed
 
+- The embedding model is loaded once per process and shared by every
+  `EmbeddingService` instance (it was loaded per instance; the service is
+  constructed in nine places).
+- The test suite no longer loads the sentence-transformers model unless a test
+  is marked `@pytest.mark.embeddings`. Every entry write in every test had been
+  importing torch (~3 s) and calling the Hugging Face hub for metadata; under
+  `-n auto` ten workers doing that at once thrashed the machine, and unrelated
+  tests showed up at 50+ s.
 - The test suite runs in parallel (`pytest -n auto`) at pre-push and in CI:
   ~22 min → ~3-5 min. The one xdist-unsafe test (the task-claim race) now uses
   a start barrier and a single group deadline instead of per-process timeouts,

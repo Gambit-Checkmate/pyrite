@@ -21,6 +21,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import pytest
+
 # Identity and repository-location variables git exports to hook subprocesses.
 # Everything GIT_* is dropped except the few that only tune behaviour.
 _KEEP = frozenset({"GIT_TERMINAL_PROMPT", "GIT_PAGER", "GIT_EDITOR", "GIT_SSH_COMMAND"})
@@ -49,3 +51,29 @@ def _isolate_git_environment() -> None:
 
 
 _isolate_git_environment()
+
+
+@pytest.fixture(autouse=True)
+def _no_auto_embed_unless_marked(request, monkeypatch):
+    """Write-time embedding is off for the suite (see tests/test_auto_embed_setting.py).
+
+    Loading the sentence-transformers model costs ~3 s of torch import plus
+    network calls to the Hugging Face hub, per process; under `-n auto` every
+    worker paid it and the suite thrashed. Tests that exercise embeddings say so:
+    `@pytest.mark.embeddings`. Subprocesses spawned by a test inherit the env var.
+    """
+    if request.node.get_closest_marker("embeddings"):
+        return
+    from pyrite.services.kb_service import KBService
+
+    def _no_model(self):
+        # A test that installed its own (mock) service keeps it; nothing else
+        # gets one. Dataclass defaults are frozen into __init__ at class
+        # creation, so patching Settings.auto_embed would not reach Settings().
+        if getattr(self, "_embedding_checked", False):
+            return self._embedding_svc
+        self._embedding_checked = True
+        return None
+
+    monkeypatch.setattr(KBService, "_get_embedding_svc", _no_model)
+    monkeypatch.setenv("PYRITE_AUTO_EMBED", "0")

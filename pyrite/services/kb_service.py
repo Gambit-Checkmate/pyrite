@@ -84,6 +84,8 @@ class KBService:
         if self._embedding_checked:
             return self._embedding_svc
         self._embedding_checked = True
+        if not getattr(self.config.settings, "auto_embed", True):
+            return None
         try:
             from .embedding_service import EmbeddingService, is_available
 

@@ -102,6 +102,7 @@ markers = [
     "mcp: MCP server protocol tests",
     "cli: CLI command tests",
     "slow: long-running performance tests (1000+ entries)",
+    "embeddings: needs write-time embedding on (loads the sentence-transformers model)",
 ]
 
 [tool.mypy]

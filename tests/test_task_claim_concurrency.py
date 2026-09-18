@@ -57,7 +57,9 @@ def _make_config(tmpdir: Path) -> tuple[PyriteConfig, KBConfig]:
     )
     config = PyriteConfig(
         knowledge_bases=[kb_config],
-        settings=Settings(index_path=tmpdir / "index.db"),
+        # Spawned workers build Settings directly (no env override), so say it
+        # here: eight interpreters each loading torch is not the race under test.
+        settings=Settings(index_path=tmpdir / "index.db", auto_embed=False),
     )
     return config, kb_config
 

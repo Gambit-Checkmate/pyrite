@@ -345,6 +345,9 @@ class Settings:
     workspace_path: Path = field(default_factory=lambda: Path.home() / ".pyrite" / "repos")
     strict_plugins: bool = False  # Raise on plugin load failures (dev/CI mode)
     prewarm_embeddings: bool = False  # Pre-load embedding model on server startup
+    # Embed entries on write. Off = keyword search only, no torch import, no
+    # model download; `pyrite index embed` can backfill later. Env: PYRITE_AUTO_EMBED
+    auto_embed: bool = True
     # White-label branding folder. None = use built-in Pyrite defaults.
     # Env override: PYRITE_BRANDING_DIR
     branding_dir: Path | None = field(
@@ -759,6 +762,7 @@ class PyriteConfig:
             embedding_model=settings_data.get("embedding_model", "all-MiniLM-L6-v2"),
             embedding_dimensions=settings_data.get("embedding_dimensions", 384),
             search_mode=settings_data.get("search_mode", "keyword"),
+            auto_embed=settings_data.get("auto_embed", True),
         )
 
         return cls(
@@ -819,6 +823,8 @@ def _apply_env_overrides(config: PyriteConfig) -> None:
         config.settings.strict_plugins = val.lower() in ("true", "1", "yes")
     if val := env("PYRITE_PREWARM_EMBEDDINGS"):
         config.settings.prewarm_embeddings = val.lower() in ("true", "1", "yes")
+    if val := env("PYRITE_AUTO_EMBED"):
+        config.settings.auto_embed = val.lower() in ("true", "1", "yes")
 
     # When PYRITE_DATA_DIR is set, derive index_path and workspace_path from it
     data_dir = env("PYRITE_DATA_DIR")

@@ -54,7 +54,13 @@ def _make_client(tmpdir, api_key="", api_keys=None):
     application.dependency_overrides[get_config] = lambda: config
     application.dependency_overrides[get_db] = lambda: db
 
-    return TestClient(application), config
+    client = TestClient(application)
+    # The fixture that yields this client must call client.pyrite_db.close():
+    # an open SQLite connection recreates its -wal/-shm files while
+    # TemporaryDirectory is deleting the tree, and teardown fails with
+    # "Directory not empty" (seen under -n auto).
+    client.pyrite_db = db
+    return client, config
 
 
 # =============================================================================
@@ -70,20 +76,24 @@ class TestResolveAPIKeyRole:
         """Create configs once for all role resolution tests."""
         with tempfile.TemporaryDirectory() as d:
             tmpdir = Path(d)
-            _, no_auth_config = _make_client(tmpdir / "no-auth", api_key="", api_keys=[])
-            _, single_key_config = _make_client(tmpdir / "single", api_key="secret123")
+            c1, no_auth_config = _make_client(tmpdir / "no-auth", api_key="", api_keys=[])
+            c2, single_key_config = _make_client(tmpdir / "single", api_key="secret123")
             keys = [{"key_hash": _hash_key("list-key"), "role": "read", "label": "Reader"}]
-            _, list_config = _make_client(tmpdir / "list", api_keys=keys)
+            c3, list_config = _make_client(tmpdir / "list", api_keys=keys)
             keys_coexist = [{"key_hash": _hash_key("list-key"), "role": "read", "label": "Reader"}]
-            _, coexist_config = _make_client(
+            c4, coexist_config = _make_client(
                 tmpdir / "coexist", api_key="legacy-key", api_keys=keys_coexist
             )
-            yield {
-                "no_auth": no_auth_config,
-                "single_key": single_key_config,
-                "list": list_config,
-                "coexist": coexist_config,
-            }
+            try:
+                yield {
+                    "no_auth": no_auth_config,
+                    "single_key": single_key_config,
+                    "list": list_config,
+                    "coexist": coexist_config,
+                }
+            finally:
+                for c in (c1, c2, c3, c4):
+                    c.pyrite_db.close()
 
     def test_no_auth_returns_admin(self, configs):
         """When auth is disabled (no api_key, no api_keys), everyone gets admin."""
@@ -161,7 +171,10 @@ class TestTierHierarchy:
                 {"key_hash": _hash_key("admin-key"), "role": "admin", "label": "A"},
             ]
             client, _ = _make_client(tmpdir, api_keys=keys)
-            yield client
+            try:
+                yield client
+            finally:
+                client.pyrite_db.close()
 
     def test_read_key_can_access_read_endpoints(self, three_key_client):
         """Read-tier key can access read-only endpoints (GET /api/kbs)."""
@@ -236,14 +249,20 @@ class TestBackwardsCompatibility:
         """Client with no auth configured."""
         with tempfile.TemporaryDirectory() as d:
             client, _ = _make_client(Path(d), api_key="")
-            yield client
+            try:
+                yield client
+            finally:
+                client.pyrite_db.close()
 
     @pytest.fixture(scope="class")
     def single_key_client(self):
         """Client with legacy single api_key."""
         with tempfile.TemporaryDirectory() as d:
             client, _ = _make_client(Path(d), api_key="my-key")
-            yield client
+            try:
+                yield client
+            finally:
+                client.pyrite_db.close()
 
     def test_no_auth_all_endpoints_accessible(self, no_auth_client):
         """When api_key is empty and no api_keys, everything works (current behavior)."""
@@ -267,7 +286,10 @@ class TestBackwardsCompatibility:
         with tempfile.TemporaryDirectory() as d:
             keys = [{"key_hash": _hash_key("k"), "role": "read", "label": "R"}]
             client, _ = _make_client(Path(d), api_keys=keys)
-            assert client.get("/health").status_code == 200
+            try:
+                assert client.get("/health").status_code == 200
+            finally:
+                client.pyrite_db.close()
 
 
 # =============================================================================
@@ -284,7 +306,10 @@ class TestTierErrorResponses:
         with tempfile.TemporaryDirectory() as d:
             keys = [{"key_hash": _hash_key("read-key"), "role": "read", "label": "R"}]
             client, _ = _make_client(Path(d), api_keys=keys)
-            yield client
+            try:
+                yield client
+            finally:
+                client.pyrite_db.close()
 
     def test_403_includes_required_tier(self, read_only_client):
         """403 response should indicate which tier is required."""

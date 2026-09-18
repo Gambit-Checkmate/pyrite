@@ -355,3 +355,15 @@ class TestSimilaritySearch:
         svc = EmbeddingService(populated_db)
         results = svc.search_similar("anything")
         assert results == []
+
+
+@pytest.mark.embeddings
+class TestModelIsSharedPerProcess:
+    def test_two_services_share_one_loaded_model(self, test_db):
+        # The model is ~90 MB of weights and ~3 s to load; the service is
+        # constructed in many places (see unify-embedding-service-instances),
+        # and each instance loading its own copy is why this file alone cost
+        # 30 s of the suite. One load per process per model name.
+        a = EmbeddingService(test_db)
+        b = EmbeddingService(test_db)
+        assert a._get_model() is b._get_model()

@@ -9,6 +9,7 @@ Requires optional dependencies: pip install pyrite[semantic]
 
 import logging
 import struct
+import threading
 from typing import Any
 
 from ..storage.database import PyriteDB
@@ -161,6 +162,14 @@ def _best_passage(body: str, query: str, max_len: int = 200) -> str:
     return best_para
 
 
+# One loaded model per process per model name. The weights are ~90 MB and take
+# seconds to load; the service is constructed in many places (each KBService,
+# the prewarm path, CLI commands) and every instance loading its own copy was
+# a second-per-instance tax that showed up as 30 s in the embedding tests alone.
+_MODEL_CACHE: dict[str, Any] = {}
+_MODEL_CACHE_LOCK = threading.Lock()
+
+
 class EmbeddingService:
     """
     Service for generating and querying vector embeddings.
@@ -187,8 +196,13 @@ class EmbeddingService:
         self.max_body_chars = max_body_chars
 
     def _get_model(self):
-        """Lazy-load the sentence-transformers model."""
+        """Lazy-load the sentence-transformers model (shared per process)."""
         if self._model is None:
+            with _MODEL_CACHE_LOCK:
+                cached = _MODEL_CACHE.get(self.model_name)
+            if cached is not None:
+                self._model = cached
+                return cached
             import logging
 
             # Suppress noisy output during model loading:
@@ -204,6 +218,8 @@ class EmbeddingService:
                 logging.getLogger(name).setLevel(logging.ERROR)
             try:
                 self._model = SentenceTransformer(self.model_name)
+                with _MODEL_CACHE_LOCK:
+                    _MODEL_CACHE[self.model_name] = self._model
             finally:
                 for name, level in old_levels.items():
                     logging.getLogger(name).setLevel(level)
