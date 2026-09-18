@@ -207,8 +207,10 @@ def make_client(tmp_path):
     duplicated across test_api_tiers.py, test_api_wikilinks.py,
     test_api_security.py, and test_repo_endpoints.py.
 
-    Owns the DB it creates and the app's index worker: both are closed /
-    joined at teardown, in that order, before pytest removes `tmp_path`.
+    Owns every DB opened on its behalf -- its own, AND the second one
+    `create_app()` opens on `application.state.pyrite_db` (see below) --
+    plus the app's index worker. Workers are joined and DBs closed at
+    teardown, in that order, before pytest removes `tmp_path`.
     This is what those hand-rolled helpers were missing --
     tests-leak-open-pyritedb-connections-into-temporarydirectory-teardown
     (an unclosed WAL connection) and GitHub #55 (an index-worker thread
@@ -219,8 +221,11 @@ def make_client(tmp_path):
     Usage:
         client, config, db = make_client(api_key="secret", kb_name="test-kb")
 
-    `tmp_path` (not `tempfile.TemporaryDirectory()`) means a late writer
-    after the test ends cannot fail the run: pytest doesn't delete it.
+    `tmp_path` (not `tempfile.TemporaryDirectory()`) is a second line of
+    defence: pytest's default retention policy does not delete it during
+    the run, so a late writer cannot fail this session. That is a
+    mitigation, not the fix -- the fix is closing every connection below,
+    because the retention policy is a default a project can change.
     """
     if not _HAS_FASTAPI:
         pytest.skip("fastapi not installed")
@@ -230,7 +235,8 @@ def make_client(tmp_path):
     from pyrite.server.api import create_app, get_config, get_db, get_index_worker
     from pyrite.services.index_worker import IndexWorker
 
-    created: list[tuple[PyriteDB, IndexWorker]] = []
+    created_dbs: list[PyriteDB] = []
+    created_workers: list[IndexWorker] = []
     counter = {"n": 0}
 
     def _make(
@@ -266,10 +272,26 @@ def make_client(tmp_path):
 
         application = create_app(config=config)
         db = PyriteDB(db_path)
+        created_dbs.append(db)
         application.dependency_overrides[get_config] = lambda: config
         application.dependency_overrides[get_db] = lambda: db
 
+        # `create_app()` eagerly seeds the KB registry, which calls its own
+        # `_app_get_db()` and opens a SECOND PyriteDB on the same file,
+        # stored as `application.state.pyrite_db`. The overrides above
+        # redirect dependency injection but do NOT close that connection,
+        # and some routes read it directly rather than through DI (the
+        # export path in pyrite/server/endpoints/kbs.py). Nothing in
+        # pyrite/ ever closes `app.state.pyrite_db`, so unless this fixture
+        # owns it too, it stays open in WAL mode with its -wal/-shm files
+        # live -- the very leak this fixture exists to end, merely hidden
+        # by tmp_path not being deleted during the run.
+        app_state_db = getattr(application.state, "pyrite_db", None)
+        if app_state_db is not None and app_state_db is not db:
+            created_dbs.append(app_state_db)
+
         index_worker = IndexWorker(db, config)
+        created_workers.append(index_worker)
         application.dependency_overrides[get_index_worker] = lambda: index_worker
 
         if dependency_overrides:
@@ -277,7 +299,6 @@ def make_client(tmp_path):
                 application.dependency_overrides[dep] = override
 
         client = TestClient(application)
-        created.append((db, index_worker))
 
         if register_user is not None:
             username, password = register_user
@@ -290,6 +311,20 @@ def make_client(tmp_path):
     # Teardown order matters: join/stop every index worker's background
     # threads BEFORE closing the DB connections they write through, and
     # both before pytest removes tmp_path.
-    for db, index_worker in created:
-        index_worker.wait_for_idle(timeout=10)
-        db.close()
+    #
+    # Each step is individually guarded: an unguarded loop lets one failing
+    # join or close leak every DB after it, which is the same class of bug
+    # this fixture exists to fix.
+    errors: list[BaseException] = []
+    for index_worker in created_workers:
+        try:
+            index_worker.wait_for_idle(timeout=10)
+        except BaseException as exc:  # noqa: BLE001 - re-raised below
+            errors.append(exc)
+    for db in created_dbs:
+        try:
+            db.close()
+        except BaseException as exc:  # noqa: BLE001 - re-raised below
+            errors.append(exc)
+    if errors:
+        raise errors[0]

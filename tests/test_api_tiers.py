@@ -105,10 +105,22 @@ class TestResolveAPIKeyRole:
         finally:
             # Join every index worker's threads before closing its DB,
             # and both before tmp_path_factory removes the directory.
+            # Each step is guarded individually: an unguarded loop lets one
+            # failing join or close leak every connection after it -- the
+            # same leak this teardown exists to prevent.
+            errors: list[BaseException] = []
             for w in (w1, w2, w3, w4):
-                w.wait_for_idle(timeout=10)
+                try:
+                    w.wait_for_idle(timeout=10)
+                except BaseException as exc:  # noqa: BLE001 - re-raised below
+                    errors.append(exc)
             for db in (db1, db2, db3, db4):
-                db.close()
+                try:
+                    db.close()
+                except BaseException as exc:  # noqa: BLE001 - re-raised below
+                    errors.append(exc)
+            if errors:
+                raise errors[0]
 
     def test_no_auth_returns_admin(self, configs):
         """When auth is disabled (no api_key, no api_keys), everyone gets admin."""
