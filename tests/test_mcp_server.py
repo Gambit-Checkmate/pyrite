@@ -912,7 +912,7 @@ class TestPyriteMCPServer:
         assert len(source_links) == 1
 
     def test_kb_link_not_found(self, mcp_admin_server):
-        """Test linking from a nonexistent entry returns error."""
+        """Test linking from a nonexistent source returns error, retryable=false."""
         server = mcp_admin_server["server"]
         target = server._dispatch_tool(
             "kb_create",
@@ -933,40 +933,108 @@ class TestPyriteMCPServer:
                 "target_id": target["entry_id"],
             },
         )
+        assert "error" in result
         assert result["error_code"] == "LINK_FAILED"
         assert result["error"] == "Entry not found: no-such-entry"
         assert result["retryable"] is False
 
     def test_kb_link_target_not_found(self, mcp_admin_server):
-        """Test linking to a nonexistent entry does not create a dangling link."""
+        """Target validation: linking to a nonexistent target returns error,
+        retryable=false, and leaves the source's stored links untouched."""
         server = mcp_admin_server["server"]
-        source = server._dispatch_tool(
+
+        r1 = server._dispatch_tool(
             "kb_create",
             {
                 "kb_name": "test-events",
                 "entry_type": "event",
-                "title": "Existing Link Source",
-                "date": "2025-04-06",
-                "body": "Source entry.",
+                "title": "Source For Dangling",
+                "date": "2025-05-01",
+                "body": "Source exists.",
             },
         )
+        assert r1.get("created")
 
         result = server._dispatch_tool(
             "kb_link",
             {
-                "source_id": source["entry_id"],
+                "source_id": r1["entry_id"],
                 "source_kb": "test-events",
-                "target_id": "no-such-target",
-                "target_kb": "test-research",
+                "target_id": "zzz-nonexistent-target",
             },
         )
-
+        assert "error" in result
         assert result["error_code"] == "LINK_FAILED"
-        assert result["error"] == "Entry not found: no-such-target"
         assert result["retryable"] is False
-        stored = KBRepository(mcp_admin_server["test-events"]).load(source["entry_id"])
+        assert "zzz-nonexistent-target" in result["error"]
+        stored = KBRepository(mcp_admin_server["test-events"]).load(r1["entry_id"])
         assert stored is not None
-        assert all(link.target != "no-such-target" for link in stored.links)
+        assert all(link.target != "zzz-nonexistent-target" for link in stored.links)
+
+    def test_kb_link_allow_dangling(self, mcp_admin_server):
+        """allow_dangling=true creates link to missing target, resolved=false."""
+        server = mcp_admin_server["server"]
+
+        r1 = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Source For Forward Ref",
+                "date": "2025-05-02",
+                "body": "Source exists.",
+            },
+        )
+        assert r1.get("created")
+
+        result = server._dispatch_tool(
+            "kb_link",
+            {
+                "source_id": r1["entry_id"],
+                "source_kb": "test-events",
+                "target_id": "future-entry-not-yet-created",
+                "allow_dangling": True,
+            },
+        )
+        assert result.get("linked") is True
+        assert result["resolved"] is False
+
+    def test_kb_link_resolved_true(self, mcp_admin_server):
+        """Normal link to existing target reports resolved=true."""
+        server = mcp_admin_server["server"]
+
+        r1 = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Resolved Source",
+                "date": "2025-05-03",
+                "body": "Source.",
+            },
+        )
+        r2 = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Resolved Target",
+                "date": "2025-05-04",
+                "body": "Target.",
+            },
+        )
+        assert r1.get("created") and r2.get("created")
+
+        result = server._dispatch_tool(
+            "kb_link",
+            {
+                "source_id": r1["entry_id"],
+                "source_kb": "test-events",
+                "target_id": r2["entry_id"],
+            },
+        )
+        assert result.get("linked") is True
+        assert result["resolved"] is True
 
     def test_kb_link_replayed_after_target_deleted_is_still_a_noop(self, mcp_admin_server):
         """Re-issuing a link that is already recorded stays a silent no-op, even

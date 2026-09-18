@@ -954,15 +954,17 @@ class PyriteMCPServer:
         relation = args.get("relation", "related_to")
         target_kb = args.get("target_kb")
         note = args.get("note", "")
+        allow_dangling = args.get("allow_dangling", False)
 
         try:
-            self.svc.add_link(
+            result = self.svc.add_link(
                 source_id=source_id,
                 source_kb=source_kb,
                 target_id=target_id,
                 relation=relation,
                 target_kb=target_kb,
                 note=note,
+                allow_dangling=allow_dangling,
             )
         except (EntryNotFoundError, KBNotFoundError) as e:
             # Both are deterministic: a missing entry or an unregistered KB does
@@ -979,6 +981,7 @@ class PyriteMCPServer:
             "source_id": source_id,
             "target_id": target_id,
             "relation": relation,
+            "resolved": result["resolved"],
         }
 
     # =========================================================================

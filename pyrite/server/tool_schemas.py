@@ -834,6 +834,11 @@ WRITE_TOOLS = {
                     "type": "string",
                     "description": "Optional note about the link",
                 },
+                "allow_dangling": {
+                    "type": "boolean",
+                    "description": "If true, permit linking to a target that doesn't exist yet (forward reference). Default false.",
+                    "default": False,
+                },
             },
             "required": ["source_id", "source_kb", "target_id"],
         },
