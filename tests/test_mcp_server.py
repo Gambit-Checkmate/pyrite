@@ -177,6 +177,39 @@ class TestPyriteMCPServer:
         assert result.get("error_code") == "QUERY_SYNTAX", result
         assert result.get("retryable") is False, result
 
+    def test_kb_batch_read_fields_without_kb_name_is_not_internal(self, mcp_admin_server):
+        """`fields` that omits kb_name/id used to raise a raw KeyError while the
+        handler computed `not_found`; _dispatch_tool's catch-all then reported
+        it as INTERNAL/retryable=True. The identity pair now stays in the
+        projection, so the call succeeds and still lists missing IDs.
+        kb-batch-read-fields-identity-contract."""
+        server = mcp_admin_server["server"]
+        found = server._dispatch_tool(
+            "kb_search", {"query": "immigration", "kb_name": "test-events"}
+        )
+        entry_id = found["results"][0]["id"]
+
+        result = server._dispatch_tool(
+            "kb_batch_read",
+            {
+                "entries": [
+                    {"entry_id": entry_id, "kb_name": "test-events"},
+                    {"entry_id": "no-such-entry", "kb_name": "test-events"},
+                ],
+                "fields": ["title", "entry_type"],
+            },
+        )
+
+        assert "error_code" not in result, result
+        assert result["found"] == 1
+        assert result["not_found"] == [{"entry_id": "no-such-entry", "kb_name": "test-events"}]
+        entry = result["entries"][0]
+        assert entry["title"]
+        assert entry["entry_type"] == "event"
+        # Identity fields are always included, even when not requested.
+        assert entry["id"] == entry_id
+        assert entry["kb_name"] == "test-events"
+
     def test_kb_search_with_filters(self, mcp_admin_server):
         """Test search with filters."""
         result = mcp_admin_server["server"]._dispatch_tool(

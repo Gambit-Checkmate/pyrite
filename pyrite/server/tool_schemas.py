@@ -267,7 +267,7 @@ READ_TOOLS = {
                 "fields": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Return only these fields per entry. Omit for all fields. When specified, body chunking is skipped.",
+                    "description": "Return only these fields per entry. Omit for all fields. When specified, body chunking is skipped. `id` and `kb_name` are always included.",
                 },
                 "body_offset": {
                     "type": "integer",

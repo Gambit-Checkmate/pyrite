@@ -536,7 +536,12 @@ class PyriteMCPServer:
         results = self.svc.get_entries(ids)
 
         if fields:
-            results = [_project_fields(r, fields) for r in results]
+            # `id` and `kb_name` are the identity pair the `not_found` math
+            # below reads; keep them in the projection so a `fields` list that
+            # omits either cannot turn the response into a raw KeyError
+            # reported as INTERNAL/retryable=True
+            # (kb-batch-read-fields-identity-contract).
+            results = [_project_fields(r, ["id", "kb_name", *fields]) for r in results]
         else:
             results = [_chunk_body(r, offset=body_offset, limit=body_limit) for r in results]
 
