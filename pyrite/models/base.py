@@ -214,7 +214,33 @@ class Entry(ABC):
             raise ValueError("No path specified and no file_path set")
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.to_markdown(), encoding="utf-8")
+        # Atomic replace: agents race on the same file (claim vs reset, claim
+        # vs claim) and a plain write_text lets a concurrent load() read a
+        # truncated file. Temp file in the same directory so the rename is
+        # atomic on POSIX and Windows; a failed write leaves the old file intact.
+        import os
+        import tempfile
+
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(self.to_markdown())
+            # mkstemp gives 0600; keep the existing file's mode, or what a
+            # plain write would have produced under the current umask.
+            try:
+                mode = os.stat(path).st_mode & 0o777
+            except FileNotFoundError:
+                umask = os.umask(0)
+                os.umask(umask)
+                mode = 0o666 & ~umask
+            os.chmod(tmp, mode)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
         self.file_path = path
         return path
 
