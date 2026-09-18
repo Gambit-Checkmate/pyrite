@@ -1,26 +1,31 @@
 ---
-name: Bug Report
-about: Report a bug to help us improve
-title: "[Bug] "
+name: Bug report
+about: Something is broken. Crashes, wrong results, a command that does not do what the docs say.
+title: ""
 labels: bug
 assignees: ''
 ---
 
-## Description
-A clear description of the bug.
+## What happened
 
-## Steps to Reproduce
-1. ...
-2. ...
+What you ran, what you expected, what you got. Paste the exact command and the
+error or traceback — the text, not a screenshot.
 
-## Expected Behavior
-What you expected to happen.
+## Steps to reproduce
 
-## Actual Behavior
-What actually happened. Include error messages or tracebacks if applicable.
+1.
+2.
 
 ## Environment
-- OS:
-- Python version:
-- pyrite version:
-- Installation method (pip, source):
+
+- Pyrite version: `python -c "import pyrite; print(pyrite.__version__)"`
+- Installed how: source checkout / `pip install "pyrite[...] @ git+...@vX.Y.Z"` / Docker
+- Interface: CLI / `pyrite-server` REST / MCP (stdio or SSE) / web UI
+- OS and Python version:
+
+## Anything else
+
+If this involves a knowledge base you cannot share, describe its shape (entry
+types, rough size) rather than pasting content. Security problems go to the
+[private report form](https://github.com/markramm/pyrite/security/advisories/new),
+not here.

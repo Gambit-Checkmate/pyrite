@@ -7,7 +7,7 @@ tags:
 - contributor-experience
 importance: 5
 kind: improvement
-status: proposed
+status: in_progress
 priority: high
 effort: S
 rank: 0
@@ -67,3 +67,21 @@ PATH — suggest an absolute path.
 - [ ] SECURITY.md names a channel that is actually switched on.
 
 Source: 2026-09-17 project review (three read-only audits: docs/contributor, public-repo, code-health).
+
+## Status 2026-09-17
+
+**Done:** CONTRIBUTING (install, branch flow per ADR-0032, hook stages, PR
+steps, one-week first-response intent, where work is tracked per ADR-0033,
+private-material rule, credits); PR template (`Fixes #N`, failing-test rule,
+extensions command); issue templates + `config.yml` (version, install path,
+interface; security routed to the private form); CODE_OF_CONDUCT contact;
+SECURITY.md versions; README facts listed above, install section (git-tag
+install + no-web-UI caveat), MCP absolute path, model-download note,
+contributors; `docs/configuration.md` (new: every `PYRITE_*` variable);
+docs/getting-started.md model-download note and MCP path. Seven
+`good first issue` items exist (#12, #16–#21).
+
+**Still open, owner action:** enable GitHub private vulnerability reporting
+(repo Settings → Security). Until then the security links in SECURITY.md and
+the issue-template `config.yml` point at a form that returns 404. This is the
+only unmet acceptance criterion.

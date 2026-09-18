@@ -100,7 +100,7 @@ pyrite search "algorithm" -k my-research
 pyrite search "mathematics" -k my-research --type person
 ```
 
-**Semantic search** finds conceptually related content, not just keyword matches (requires an OpenAI API key or local embeddings):
+**Semantic search** finds conceptually related content, not just keyword matches. It uses a local embedding model (`all-MiniLM-L6-v2`, ~90 MB) that is downloaded the first time it is needed — expect the first semantic search or the first `pyrite-server` write to take a minute, once. Set `PYRITE_AUTO_EMBED=0` to skip embedding on write and keep keyword search only:
 
 ```bash
 pyrite search "early computer science pioneers" -k my-research --mode semantic
@@ -133,7 +133,7 @@ Desktop/Code afterward to pick up the change.
 {
   "mcpServers": {
     "pyrite": {
-      "command": "pyrite",
+      "command": "/absolute/path/to/.venv/bin/pyrite",
       "args": ["mcp"]
     }
   }
@@ -146,7 +146,7 @@ Your AI can now search, read, and create entries in your knowledge base. It gets
 {
   "mcpServers": {
     "pyrite": {
-      "command": "pyrite",
+      "command": "/absolute/path/to/.venv/bin/pyrite",
       "args": ["mcp", "--tier", "read"]
     }
   }

@@ -35,6 +35,7 @@ pyrite create -k my-kb --type note --title "Switch to async standups" \
 # Search (keyword, semantic, or hybrid)
 pyrite search "consulting" -k my-kb
 pyrite search "career transition" -k my-kb --mode=semantic  # keyword mode finds exact words only
+# The first semantic search downloads the embedding model (~90 MB, one time).
 
 # Connect to Claude Desktop / Claude Code
 # Add to your MCP config:
@@ -44,12 +45,15 @@ pyrite search "career transition" -k my-kb --mode=semantic  # keyword mode finds
 {
   "mcpServers": {
     "pyrite": {
-      "command": "pyrite",
+      "command": "/absolute/path/to/.venv/bin/pyrite",
       "args": ["mcp"]
     }
   }
 }
 ```
+
+Use the absolute path (`which pyrite`): Claude Desktop does not see your shell's
+PATH or an activated venv.
 
 Now any AI that speaks MCP can search, read, and write your knowledge base.
 
@@ -154,21 +158,21 @@ Entries track their schema version in `_schema_version` frontmatter. `pyrite sch
 
 Field types: `text`, `number`, `date`, `datetime`, `checkbox`, `select`, `multi-select`, `object-ref`, `list`, `tags`.
 
-Ten built-in entry types: `note`, `person`, `organization`, `event`, `document`, `topic`, `relationship`, `timeline`, `collection`, `qa_assessment`. Entries support `aliases` for alternate names that resolve in wikilinks and autocomplete.
+Eleven built-in entry types: `note`, `person`, `organization`, `event`, `document`, `topic`, `relationship`, `timeline`, `collection`, `qa_assessment`, `task`. Entries support `aliases` for alternate names that resolve in wikilinks and autocomplete.
 
 ## Plugin Protocol
 
 Extensions implement a Python protocol class with up to 19 methods:
 
-- `get_entry_classes()` — custom entry types with serialization
+- `get_entry_types()` — custom entry types with serialization
 - `get_type_metadata()` — field definitions, AI instructions, presets
 - `get_collection_types()` — custom collection types
 - `get_mcp_tools(tier)` — per-tier MCP tools
-- `get_cli_app()` — Typer sub-commands
+- `get_cli_commands()` — Typer sub-commands
 - `get_validators()` — entry validation rules
 - `get_migrations()` — schema migration functions for entry type upgrades
 - `get_relationship_types()` — semantic relationship definitions
-- Lifecycle hooks: `before_save`, `after_save`, `before_delete`, `after_delete`
+- `get_hooks()` — lifecycle hooks: `before_save`, `after_save`, `before_delete`, `after_delete`, `before_index`
 
 Six extensions ship:
 
@@ -207,7 +211,7 @@ Optional SvelteKit 2 + Svelte 5 frontend for browsing, visualization, and oversi
 ```
 pyrite/
 ├── models/          # Entry types (base, core_types, factory, generic, collection)
-├── schema.py        # YAML-driven type definitions, field validation
+├── schema/          # YAML-driven type definitions, field validation, core types
 ├── migrations.py    # Schema migration registry (on-load entry transforms)
 ├── config.py        # Multi-KB and repo configuration
 ├── server/
@@ -219,11 +223,11 @@ pyrite/
 │   ├── database.py  # SQLite + FTS5 + sqlite-vec (SQLAlchemy ORM + raw SQL)
 │   ├── index.py     # Incremental indexing with wikilink/transclusion extraction
 │   └── repository.py # Markdown file I/O
-├── services/        # Business logic (kb, search, embedding, llm, git, collection_query, clipper, user)
+├── services/        # Business logic, ~40 services (kb, search, embedding, llm, git, task, qa, auth, worktree, export, ...)
 ├── plugins/         # Plugin discovery and protocol
 └── formats/         # Content negotiation (JSON, Markdown, CSV, YAML)
 
-extensions/          # Domain-specific plugins (software-kb, zettelkasten, encyclopedia, social, cascade, task)
+extensions/          # Domain-specific plugins (software-kb, zettelkasten, encyclopedia, social, journalism-investigation, cascade)
 web/                 # SvelteKit 2 + Svelte 5 frontend (TypeScript + Tailwind)
 kb/                  # Pyrite's own KB (ADRs, backlog, components, standards)
 ```
@@ -280,12 +284,22 @@ docker compose up -d  # http://localhost:8088
 
 ## Install
 
-No PyPI wheel yet — install from source:
+No PyPI wheel yet. From source (CLI, server, MCP **and** the web UI):
 
 ```bash
 git clone https://github.com/markramm/pyrite.git && cd pyrite
 pip install -e ".[all]"      # Core + AI + semantic search + dev tools
+cd web && npm ci && npm run build && cd ..   # the web UI (optional)
 ```
+
+Or straight from a release tag, no clone:
+
+```bash
+pip install "pyrite[server,cli] @ git+https://github.com/markramm/pyrite@v0.24.1"
+```
+
+That gives you the CLI, the REST API and the MCP server, but **not the web
+UI** — the built frontend is not packaged yet (tracked; planned for 0.24.2).
 
 Narrower extras: `pip install -e ".[server]"` (REST API + web UI),
 `pip install -e ".[ai]"` (OpenAI + Anthropic SDKs),
@@ -314,8 +328,8 @@ pip install -e ".[all]"
 for ext in extensions/*/; do pip install -e "$ext"; done
 pre-commit install
 
-# Tests (~2500 tests)
-pytest tests/ -v
+# Tests (~4100, incl. extensions; ~1 min in parallel)
+pytest tests/ extensions/ -n auto
 
 # Frontend
 cd web && npm install && npm run dev
@@ -328,7 +342,7 @@ Pyrite's own backlog and architecture docs live in `kb/`:
 
 ```bash
 pyrite sw backlog        # Prioritized backlog
-pyrite sw adrs           # Architecture Decision Records (22 ADRs)
+pyrite sw adrs           # Architecture Decision Records (33 ADRs)
 pyrite sw components     # Module documentation
 pyrite sw standards      # Coding conventions
 ```
@@ -336,6 +350,7 @@ pyrite sw standards      # Coding conventions
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) — install, create a KB, connect an AI
+- [Configuration](docs/configuration.md) — `config.yaml` and every `PYRITE_*` environment variable
 - [Plugin Writing Tutorial](docs/tutorials/plugin-writing.md) — build a custom plugin step by step
 - [Plugins Directory](docs/plugins.md) — official and community plugins
 - [OpenAI / Codex MCP Integration](docs/openai-mcp-integration.md)
@@ -348,6 +363,12 @@ Pyrite was built at [Transparency Cascade Press](https://transparencycascade.org
 That constraint shaped the design. Agents are users here: they create and query entries through the CLI and MCP, they get typed errors instead of tracebacks, and they operate under the same schema validation and three-tier permissions a human does. The knowledge base is plain markdown in git precisely so a claim can be traced to the commit that introduced it, which is a journalism requirement before it is a software one.
 
 It is still used in production for that work, and it has since grown past it into a general tool.
+
+**Contributors.** [AsyncLegs](https://github.com/AsyncLegs) deployed Pyrite as
+a server for agents and found, then fixed, three bugs the test suite had never
+seen (MCP over SSE, KB registry cache, embedding prewarm — v0.24.1). Bug reports
+go to [GitHub issues](https://github.com/markramm/pyrite/issues); see
+[CONTRIBUTING.md](CONTRIBUTING.md) for how the project works.
 
 Started as a fork of [joshylchen/zettelkasten](https://github.com/joshylchen/zettelkasten). Since substantially rewritten: multi-KB, plugin system, three-tier MCP, FTS5 + vector search, REST API with tier enforcement, SvelteKit frontend, service layer, schema-as-config, content negotiation, collections, block references, web clipper, AI integration. See [UPSTREAM_CHANGES.md](UPSTREAM_CHANGES.md) for divergence history.
 

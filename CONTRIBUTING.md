@@ -113,60 +113,97 @@ pyrite/
 
 ## Testing
 
-### Running Tests
-
 ```bash
-# Run all backend tests
-.venv/bin/pytest tests/ -v
+# Everything, in parallel (~1 min). This is what the pre-push hook and CI run.
+.venv/bin/pytest tests/ extensions/ -n auto
 
-# Run extension tests too
-.venv/bin/pytest tests/ extensions/*/tests/ -v
-
-# Run specific test file
+# One file, or tests matching a pattern
 .venv/bin/pytest tests/test_models.py
-
-# Run tests matching pattern
 .venv/bin/pytest -k "search"
 
-# Frontend tests
-cd web && npm run test:unit
+# Frontend
+cd web && npm run check && npm run test:unit
 ```
+
+The suite does not load the embedding model unless a test is marked
+`@pytest.mark.embeddings`; everything else runs with `auto_embed` off. A test
+that passes alone but fails under `-n auto` is a bug in that test (shared
+state, a fixed wall-clock timeout, an unclosed database), not a reason to run
+serially — `tests/test_task_claim_concurrency.py` shows the pattern for
+process-spawning tests.
 
 ### Writing Tests
 
-- Place tests in `tests/` directory
+- Tests live in `tests/`; extension tests in `extensions/<name>/tests/`
 - Name test files `test_*.py`
-- Use pytest fixtures for common setup (`tmp_kb`, isolated plugin registry)
-- Test both success and error cases
+- A `fix:` commit must include a test that fails without the fix (a hook checks
+  that it touches `tests/`)
+- Use pytest fixtures for common setup (`tmp_kb`, isolated plugin registry);
+  close any `PyriteDB` you open
 - Use `in` not `len` for registry assertions (see [testing standards](kb/standards/testing-standards.md))
 
-## Pull Request Process
+## Branches, hooks and pull requests
 
-### Before Submitting
+**Branches** (ADR-0025 and ADR-0032):
 
-1. **Create a branch**: `git checkout -b feature/your-feature`
-2. **Write tests** for new functionality
-3. **Run the test suite**: `.venv/bin/pytest tests/ -v`
-4. **Run linting**: `ruff check --fix pyrite/ && ruff format pyrite/`
-5. **Update documentation** if needed
+- `dev` is the default branch and where work integrates. `main` is releases
+  only and moves by fast-forward to a commit that already passed CI.
+- Branch from `dev`, open the PR against `dev`. Rebase is the default merge
+  method (it keeps your commits and their messages); squash is fine for a
+  branch whose history is noise.
+- A PR merges when its checks are green **on top of current `dev`** — the
+  three Python jobs and `frontend` are required, and the branch must be up to
+  date. If `dev` is broken, nothing merges until it is fixed.
 
-### PR Guidelines
+**Git hooks** — `pre-commit install` installs all three:
 
-- Keep PRs focused on a single change
-- Write clear commit messages
-- Reference any related issues
+| Stage | Runs | Takes |
+|---|---|---|
+| commit | ruff, formatting, file hygiene, import-cycle check, KB schema validation | seconds |
+| commit-msg | a `fix:` commit must touch `tests/` | — |
+| pre-push | `pytest tests/ extensions/ -n auto`, only when the push touches code or config | ~1 min |
 
-### Commit Messages
+CI runs the same checks plus the full Python matrix, Postgres, the frontend
+build and Playwright. `--no-verify` is for a documented emergency, not for a
+red test you did not write; if a test you did not touch fails, say so in the PR
+and we will look at it together.
 
-Use conventional commits:
+**Pull requests:**
 
-```
-feat: add vector search support
-fix: handle hyphens in FTS5 queries
-docs: update API reference
-test: add timeline endpoint tests
-refactor: extract search service
-```
+1. `git checkout -b fix/what-it-fixes dev` (or `feature/...`)
+2. Write the failing test, then the fix
+3. Push; the pre-push hook runs the suite
+4. Open the PR against `dev` and fill in the template (`Fixes #N` for bugs)
+5. Expect a first response **within a week**. If you have heard nothing after
+   that, comment on the PR — it is a lapse, not a verdict.
+
+Commit messages use conventional commits (`feat:`, `fix:`, `docs:`, `test:`,
+`refactor:`, `ci:`, `kb:`).
+
+## Where work is tracked
+
+Two places, one rule — an item lives in exactly one of them (ADR-0033):
+
+- **Bugs and requests → [GitHub Issues](https://github.com/markramm/pyrite/issues).**
+  Anyone can file one; use the templates. Issues labelled
+  [`good first issue`](https://github.com/markramm/pyrite/labels/good%20first%20issue)
+  are small, well-specified and a fine place to start.
+- **The roadmap → `kb/`** in this repo: epics, planned work and architecture
+  decisions, browsable with the tool itself:
+
+  ```bash
+  pyrite sw backlog        # planned work, by priority
+  pyrite sw adrs           # architecture decision records
+  pyrite sw components     # module documentation
+  ```
+
+  `kb/roadmap.md` is the plan for the next releases. A request we accept gets a
+  roadmap item that links back to the issue.
+
+**Security issues:** never in a public issue — see [SECURITY.md](SECURITY.md).
+
+**Private material:** this repository and its KB are public. Placeholders, not
+names, for anything that is not yours to publish; no absolute home paths.
 
 ## Project Configuration
 
@@ -177,9 +214,15 @@ refactor: extract search service
 
 ## Getting Help
 
-- Open an issue for bugs or feature requests
-- Check existing issues before creating new ones
-- Include reproduction steps for bugs
+- A bug or a feature request: open an issue
+- A question about how something works: open an issue with the `question` label
+- Something you found by deploying it: that is the most valuable report there
+  is — see the v0.24.1 notes for the three that shaped that release
+
+## Contributors
+
+Maintainer: Mark Ramm (BDFL; see ADR-0032). Contributors are credited in the
+CHANGELOG for the release their work ships in, and in the README.
 
 ## License
 

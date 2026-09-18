@@ -1,19 +1,28 @@
 ---
-name: Feature Request
-about: Suggest a new feature or enhancement
-title: "[Feature] "
+name: Feature request or feedback
+about: Something you wish Pyrite did, or something about it that got in your way.
+title: ""
 labels: enhancement
 assignees: ''
 ---
 
-## Description
-A clear description of the feature you'd like.
+## The problem
 
-## Use Case
-Why is this feature needed? What problem does it solve?
+What were you trying to do, and what happened instead? The problem first — the
+best requests describe a situation, not a solution.
 
-## Proposed Solution
-If you have ideas on how to implement this, describe them here.
+## What you would like
 
-## Alternatives Considered
-Any alternative solutions or features you've considered.
+If you have an idea for how it should work, describe it here. Optional.
+
+## Context
+
+- How you use Pyrite: personal KB / agents over MCP / shared server / other
+- Interface this touches: CLI / REST / MCP / web UI
+
+---
+
+*How requests are handled:* the maintainer decides what enters the roadmap
+(ADR-0032). A request that is accepted gets a roadmap item in the repo's `kb/`
+that links back here, the `roadmap` label, and stays open until it ships. One
+that is declined is closed with the reason.

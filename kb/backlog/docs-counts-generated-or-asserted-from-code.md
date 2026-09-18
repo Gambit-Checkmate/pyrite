@@ -79,3 +79,9 @@ block from the same source at build time or drop the stat tiles.
 Filed from the 2026-09-17 whole-project review; one of five structural
 checks (see [[mcp-tool-dispatch-smoke-test-every-registered-tool]] for the
 set).
+
+## Note 2026-09-17
+
+The README numbers were corrected by hand in the docs pass (33 ADRs, ~4100
+tests, eleven built-in types, ~40 services, protocol method names). They will
+drift again; this ticket is still the fix (assert or generate them).

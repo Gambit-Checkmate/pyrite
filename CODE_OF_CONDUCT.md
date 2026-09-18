@@ -35,8 +35,10 @@ an individual is officially representing the community in public spaces.
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainers.
-All complaints will be reviewed and investigated promptly and fairly.
+Instances of unacceptable behavior may be reported to the maintainer, Mark Ramm,
+at contact@transparencycascade.org. All complaints will be reviewed and
+investigated promptly and fairly, and the reporter's identity will be kept
+confidential.
 
 ## Attribution
 

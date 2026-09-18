@@ -16,6 +16,23 @@ Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
   model download on the write path; `pyrite index embed` backfills later. The
   first half of #13 (first write on a fresh install blocked on the download).
 
+### Documentation
+
+- `docs/configuration.md`: `config.yaml` and every `PYRITE_*` environment
+  variable, in one place (there was none).
+- CONTRIBUTING rewritten for a project with contributors: branch flow and
+  required checks (ADR-0032), the three hook stages, where bugs vs roadmap
+  items live (ADR-0033), a one-week first-response intent, how to run the
+  suite. PR template asks for `Fixes #N` and the failing test; issue templates
+  ask for version and install path and route security reports privately.
+- README: plugin protocol method names corrected (`get_entry_types`,
+  `get_cli_commands`, `get_hooks` incl. `before_index`), eleven built-in types,
+  `pyrite/schema/` package, extension list, test and ADR counts, the install
+  section shows the git-tag install and its no-web-UI caveat, MCP config uses
+  an absolute path, first semantic search notes the model download.
+  Contributors credited.
+- CODE_OF_CONDUCT names a contact.
+
 ### Changed
 
 - The embedding model is loaded once per process and shared by every
