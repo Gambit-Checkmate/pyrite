@@ -540,20 +540,33 @@ class PyriteMCPServer:
         body_offset = args.get("body_offset", 0)
         body_limit = args.get("body_limit", DEFAULT_BODY_CHUNK)
 
+        if not isinstance(entries_spec, list):
+            return _error(
+                "VALIDATION_FAILED",
+                "entries must be an array of {entry_id, kb_name} objects",
+                suggestion='pass entries as [{"entry_id": ..., "kb_name": ...}]',
+                retryable=False,
+            )
         if not entries_spec:
             return _error("VALIDATION_FAILED", "entries array is required and must not be empty")
         if len(entries_spec) > MAX_BATCH_READ_ENTRIES:
             return _error("VALIDATION_FAILED", f"Maximum {MAX_BATCH_READ_ENTRIES} entries per call")
 
-        # A spec missing entry_id or kb_name used to raise a raw KeyError in
-        # the comprehension below and surface as INTERNAL/retryable=True; it is
-        # a deterministic client error, not a retryable server fault
-        # (kb-batch-read-spec-validation-contract).
-        for spec in entries_spec:
-            if not isinstance(spec, dict) or "entry_id" not in spec or "kb_name" not in spec:
+        # Key presence is not enough: a non-dict item, or a non-string/empty
+        # id, reached the SQL layer or a bare `not_found` and surfaced as
+        # INTERNAL/retryable=True or a plausible-looking miss. All of them are
+        # deterministic client errors (kb-batch-read-spec-validation-contract).
+        for index, spec in enumerate(entries_spec):
+            if (
+                not isinstance(spec, dict)
+                or not isinstance(spec.get("entry_id"), str)
+                or not spec["entry_id"]
+                or not isinstance(spec.get("kb_name"), str)
+                or not spec["kb_name"]
+            ):
                 return _error(
                     "VALIDATION_FAILED",
-                    "each entries item must be an object with entry_id and kb_name",
+                    f"entries[{index}] must be an object with non-empty string entry_id and kb_name",
                     suggestion='pass entries as [{"entry_id": ..., "kb_name": ...}]',
                     retryable=False,
                 )

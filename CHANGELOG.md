@@ -205,12 +205,14 @@ Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
 ### Fixed
 
 - **`kb_batch_read` no longer crashes on a malformed spec, and every `fields`
-  projection keeps the identity pair.** A spec missing `entry_id` or `kb_name`
-  raised a raw `KeyError` that surfaced as `INTERNAL`/`retryable: true`; it now
-  returns `VALIDATION_FAILED`/`retryable: false`. `_project_fields` keeps `id`
-  and `kb_name` in every projection (`kb_search`, `kb_get`, `kb_list_entries`,
-  `kb_recent`, `kb_batch_read`), so the schema sentence is true of all five
-  (#126, #137).
+  projection keeps the identity pair.** A non-list `entries`, a non-object item,
+  or a missing, empty or non-string `entry_id`/`kb_name` used to raise a raw
+  `KeyError`, a `TypeError` or a SQL binding error that surfaced as
+  `INTERNAL`/`retryable: true`; each now returns `VALIDATION_FAILED` with
+  `retryable: false`, naming the offending `entries[i]`. `_project_fields` keeps
+  `id` and `kb_name` in every projection (`kb_search`, `kb_get`,
+  `kb_list_entries`, `kb_recent`, `kb_batch_read`), so the schema sentence is
+  true of all five (#126, #137).
 - **Two worktrees running the Playwright e2e suite at once collided on the
   same four ports (8088/5173 base, 8189/5274 auth) and could end up talking
   to each other's world.** Ports and data directories are now derived per
