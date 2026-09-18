@@ -8,7 +8,7 @@ tags:
 - quality
 importance: 5
 kind: tech_debt
-status: in_progress
+status: done
 priority: medium
 assignee: agent:pyrite-worker
 effort: S
@@ -37,8 +37,8 @@ __exit__` so `with PyriteDB(path) as db:` is the idiom.
 
 ## Acceptance
 
-- [ ] `grep -c "PyriteDB(" tests/*.py` sites all have a matching close or use
+- [x] `grep -c "PyriteDB(" tests/*.py` sites all have a matching close or use
       the shared fixture.
-- [ ] 10 consecutive `pytest -n auto` runs with no teardown errors.
+- [x] 10 consecutive `pytest -n auto` runs with no teardown errors.
 
 Found during the 2026-09-17 test-suite profiling (0.24.2).
