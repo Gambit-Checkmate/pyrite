@@ -722,6 +722,10 @@ class KBService:
 
         Updates the source entry's frontmatter and re-indexes.
 
+        The target is looked up index-first and confirmed against the
+        repository: the SQLite index answers the common case in O(1), and a
+        miss falls through to disk, which is the source of truth.
+
         Args:
             source_id: Source entry ID
             source_kb: Source KB name
@@ -735,7 +739,8 @@ class KBService:
 
         Returns:
             dict with ``resolved`` (bool) indicating whether the target
-            was found at link-creation time.
+            exists as of this call -- including on the duplicate-link path,
+            where the write is a no-op but the target may since have gone.
         """
         kb_config = self.config.get_kb(source_kb)
         if not kb_config:
@@ -753,6 +758,22 @@ class KBService:
         if not target_kb_config:
             raise KBNotFoundError(f"KB not found: {tkb}")
 
+        target_repo = repo if tkb == source_kb else KBRepository(target_kb_config)
+
+        def _target_exists() -> bool:
+            """Index first, disk as the verdict.
+
+            `self.db.get_entry` is an O(1) lookup in the SQLite index, so the
+            common case -- a target that is present and indexed -- costs a row
+            read instead of a directory scan. But the index is a *derived*
+            cache: the markdown is the source of truth, and an entry written by
+            `pyrite create` may not have an index row yet. So a miss is not an
+            answer, only a reason to ask the repository.
+            """
+            if self.db.get_entry(target_id, tkb) is not None:
+                return True
+            return target_repo.load(target_id) is not None
+
         # Duplicates are checked before the target is validated: re-issuing a
         # link already recorded in the source's frontmatter must stay a no-op
         # even if the target has since been deleted. Otherwise anything that
@@ -761,12 +782,12 @@ class KBService:
         # earlier pass wrote correctly.
         for existing in entry.links:
             if existing.target == target_id and (existing.kb or source_kb) == tkb:
-                return {"resolved": True}  # Link already exists
+                # The write is a no-op, but `resolved` is a claim about the
+                # target as it is now, so check rather than assume: a link
+                # recorded earlier may have been left dangling since.
+                return {"resolved": _target_exists()}
 
-        # Validate target exists. The markdown on disk is the source of truth;
-        # the index is a derived cache that may lag a `create`.
-        target_repo = repo if tkb == source_kb else KBRepository(target_kb_config)
-        resolved = target_repo.load(target_id) is not None
+        resolved = _target_exists()
         if not resolved and not allow_dangling:
             raise EntryNotFoundError(f"Entry not found: {target_id}")
 

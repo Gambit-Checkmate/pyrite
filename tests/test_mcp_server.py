@@ -1088,6 +1088,103 @@ class TestPyriteMCPServer:
         assert stored is not None
         assert [link.target for link in stored.links].count(target["entry_id"]) == 1
 
+    def test_kb_link_replayed_after_target_deleted_reports_resolved_false(self, mcp_admin_server):
+        """The duplicate path must COMPUTE resolved, not assume it.
+
+        A link already in the source's frontmatter stays a no-op (the test
+        above), but the `resolved` it reports is a claim about the target as it
+        is now. Hard-coding True tells a caller a stale link is fine, which is
+        exactly the state #64's `title: null` dangling outlinks come from."""
+        server = mcp_admin_server["server"]
+        source = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Replay Resolved Source",
+                "date": "2025-04-10",
+                "body": "Source entry.",
+            },
+        )
+        target = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Replay Resolved Target",
+                "date": "2025-04-11",
+                "body": "Target entry.",
+            },
+        )
+        link_args = {
+            "source_id": source["entry_id"],
+            "source_kb": "test-events",
+            "target_id": target["entry_id"],
+        }
+
+        first = server._dispatch_tool("kb_link", link_args)
+        assert first["resolved"] is True
+
+        deleted = server._dispatch_tool(
+            "kb_delete",
+            {"entry_id": target["entry_id"], "kb_name": "test-events", "confirm": True},
+        )
+        assert "error" not in deleted, deleted
+
+        replay = server._dispatch_tool("kb_link", link_args)
+        assert "error" not in replay, replay
+        assert replay["linked"] is True
+        assert replay["resolved"] is False
+
+    def test_kb_link_target_written_to_disk_but_not_indexed_still_validates(self, mcp_admin_server):
+        """The index is a derived cache; the markdown on disk is the truth.
+
+        `pyrite create` followed by `pyrite link` is the common agent path, and
+        an entry whose file exists but whose index row has not landed must not
+        be rejected. The index-first lookup is a fast path, never the verdict."""
+        server = mcp_admin_server["server"]
+        repo = KBRepository(mcp_admin_server["test-events"])
+
+        source = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Unindexed Link Source",
+                "date": "2025-04-12",
+                "body": "Source entry.",
+            },
+        )
+
+        target = server._dispatch_tool(
+            "kb_create",
+            {
+                "kb_name": "test-events",
+                "entry_type": "event",
+                "title": "Unindexed Link Target",
+                "date": "2025-04-13",
+                "body": "Target entry.",
+            },
+        )
+        # Drop the target's index row, leaving the markdown file in place: the
+        # state a create leaves behind when the index write has not caught up.
+        server.svc.db.delete_entry(target["entry_id"], "test-events")
+        assert server.svc.db.get_entry(target["entry_id"], "test-events") is None
+        assert repo.load(target["entry_id"]) is not None
+
+        result = server._dispatch_tool(
+            "kb_link",
+            {
+                "source_id": source["entry_id"],
+                "source_kb": "test-events",
+                "target_id": target["entry_id"],
+            },
+        )
+
+        assert "error" not in result, result
+        assert result["linked"] is True
+        assert result["resolved"] is True
+
     def test_kb_link_missing_target_kb_is_not_retryable(self, mcp_admin_server):
         """A target KB that is not registered is a deterministic error.
 

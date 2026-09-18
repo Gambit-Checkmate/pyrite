@@ -162,7 +162,14 @@ Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
 
 - `kb_link` now verifies that both endpoints exist before writing a link, so
   a misspelled or deleted target cannot create a dangling outlink. Missing
-  source or target entries return a non-retryable `LINK_FAILED`. (#97)
+  source or target entries return a non-retryable `LINK_FAILED`. A caller that
+  genuinely wants a forward reference passes `allow_dangling: true`, and the
+  response carries `resolved` so it can tell a link that landed from one still
+  waiting for its target. `pyrite link` on the CLI goes through the same
+  service call and is now strict, with no flag to opt out;
+  `pyrite links bulk-create` writes links through the model directly, so it is
+  unaffected. The target is looked up in the index first and confirmed on
+  disk, so an entry created but not yet indexed still validates. (#97)
 - **Typed entries no longer drop frontmatter they do not declare.** A load ->
   save through any typed class (core or plugin) deleted unknown keys —
   `pyrite update -f status=done` stripped `milestone:` and `created:`. The
