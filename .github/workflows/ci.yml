@@ -15,7 +15,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ===========================================================================
+  # Change classifier. A required check cannot be path-filtered out of the
+  # workflow (GitHub leaves it "pending" forever), so the workflow always
+  # runs, this job classifies the change, and the heavy jobs skip when nothing
+  # they test has changed. A skipped job satisfies a required check, so a
+  # docs- or KB-only PR is green in about a minute. main always runs
+  # everything: it only moves to a SHA this workflow has proven.
+  # ===========================================================================
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      kb: ${{ steps.filter.outputs.kb }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'pyrite/**'
+              - 'extensions/**'
+              - 'tests/**'
+              - 'conftest.py'
+              - 'pyproject.toml'
+              - 'kb/kb.yaml'
+              - '.pre-commit-config.yaml'
+              - '.github/workflows/**'
+              - 'scripts/**'
+            web:
+              - 'web/**'
+              - '.github/workflows/**'
+            kb:
+              - 'kb/**'
+
+  # Fast check for KB-only changes: schema validation, seconds.
+  kb:
+    needs: changes
+    if: needs.changes.outputs.kb == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+      - run: |
+          uv pip install --system -e ".[cli]"
+          for ext in extensions/*/; do
+            if [ -f "$ext/pyproject.toml" ]; then uv pip install --system -e "$ext"; fi
+          done
+      - name: Validate KB entries
+        run: pyrite schema validate kb/
+
   test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -128,6 +188,8 @@ jobs:
   # parallel with backend. r1900 web-tests-in-ci.
   # ===========================================================================
   frontend:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -160,6 +222,8 @@ jobs:
   # vice versa. r1900 web-tests-in-ci.
   # ===========================================================================
   e2e:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # TEMPORARILY NON-BLOCKING (2026-09-16). The suite is non-deterministic:

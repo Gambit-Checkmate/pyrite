@@ -152,3 +152,36 @@ class TestCIInstall:
         assert "uv pip install" in run, run
         assert "pip install -e" not in run.replace("uv pip install -e", ""), run
         assert any("setup-uv" in str(s.get("uses", "")) for s in job["steps"])
+
+
+class TestChangeClassifier:
+    """Docs/KB-only pushes must not wait for the Python suite (ADR-0032 §2).
+
+    A required check cannot simply be path-filtered out of the workflow --
+    GitHub then reports it "pending" forever and the PR can never merge -- so
+    the workflow always triggers, one job classifies the change, and the heavy
+    jobs skip. A skipped job satisfies a required check.
+    """
+
+    def test_a_classifier_job_exists(self, ci):
+        job = ci["jobs"]["changes"]
+        assert any("paths-filter" in str(s.get("uses", "")) for s in job["steps"])
+        assert set(job["outputs"]) >= {"backend", "web", "kb"}
+
+    @pytest.mark.parametrize("name", ["test", "frontend", "e2e"])
+    def test_heavy_jobs_are_gated_on_the_classifier(self, ci, name):
+        job = ci["jobs"][name]
+        assert "changes" in job.get("needs", []), f"{name} must need: changes"
+        assert "needs.changes.outputs" in str(job.get("if", "")), f"{name} has no if:"
+
+    def test_release_branch_always_runs_everything(self, ci):
+        # main only moves by fast-forward to a CI-verified SHA; never let a
+        # docs-only classification on main skip the proof.
+        for name in ("test", "frontend"):
+            assert "refs/heads/main" in str(ci["jobs"][name]["if"])
+
+    def test_kb_changes_get_their_own_fast_check(self, ci):
+        job = ci["jobs"]["kb"]
+        assert "needs.changes.outputs.kb" in str(job["if"])
+        steps = "\n".join(str(s.get("run", "")) for s in job["steps"])
+        assert "pyrite schema validate" in steps
