@@ -246,12 +246,12 @@ class TestCollectionService:
                 knowledge_bases=[kb_config],
                 settings=Settings(index_path=db_path),
             )
-            db = PyriteDB(db_path)
-            index_mgr = IndexManager(db, config)
-            index_mgr.index_all()
+            with PyriteDB(db_path) as db:
+                index_mgr = IndexManager(db, config)
+                index_mgr.index_all()
 
-            svc = KBService(config, db)
-            yield svc, db
+                svc = KBService(config, db)
+                yield svc, db
 
     def test_list_collections(self, svc_env):
         svc, _ = svc_env

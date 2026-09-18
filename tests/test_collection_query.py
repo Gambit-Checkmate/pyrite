@@ -493,11 +493,11 @@ class TestVirtualCollectionService:
                 knowledge_bases=[kb_config],
                 settings=Settings(index_path=db_path),
             )
-            db = PyriteDB(db_path)
-            IndexManager(db, config).index_all()
+            with PyriteDB(db_path) as db:
+                IndexManager(db, config).index_all()
 
-            svc = KBService(config, db)
-            yield svc, db
+                svc = KBService(config, db)
+                yield svc, db
 
     def test_virtual_collection_returns_entries(self, virtual_collection_env):
         svc, _ = virtual_collection_env

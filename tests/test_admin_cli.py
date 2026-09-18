@@ -835,16 +835,17 @@ class TestIndexEmbed:
     def test_index_embed_no_embedder(self, admin_env):
         """Embedding without sentence-transformers should fail gracefully."""
         with _patch_config(admin_env):
-            with patch(
-                "pyrite.cli.index_commands.get_config_and_db",
-                return_value=(
-                    admin_env["config"],
-                    PyriteDB(admin_env["config"].settings.index_path),
-                ),
-            ):
-                result = runner.invoke(app, ["index", "embed"])
-                # Exits 1 if sentence-transformers not available, 0 if it is
-                assert result.exit_code in (0, 1)
+            # Bound and closed via the context manager: constructed inline in
+            # the patch() call it was unreachable, so its WAL connection stayed
+            # open for the rest of the session.
+            with PyriteDB(admin_env["config"].settings.index_path) as db:
+                with patch(
+                    "pyrite.cli.index_commands.get_config_and_db",
+                    return_value=(admin_env["config"], db),
+                ):
+                    result = runner.invoke(app, ["index", "embed"])
+                    # Exits 1 if sentence-transformers not available, 0 if it is
+                    assert result.exit_code in (0, 1)
 
     def test_index_embed_specific_kb(self, admin_env):
         with _patch_config(admin_env):
