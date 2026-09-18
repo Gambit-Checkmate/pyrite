@@ -48,6 +48,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          # Wheel cache keyed on every dependency manifest: the install step was
+          # ~1 min of the job before; a cache hit makes it seconds.
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            extensions/*/pyproject.toml
 
       - name: Install dependencies
         # `.[dev]` is test TOOLING ONLY (pytest/mypy/ruff/xdist) -- it pulls
@@ -99,12 +105,17 @@ jobs:
         # `anyio.abc.BlockingPortal` alias warning failing collection).
         # Scope the escalation to pyrite's own modules; everything else
         # stays a visible warning.
-        # -n auto: the suite is ~4x faster on the 4-vCPU runners, and ADR-0032's
-        # "up to date" requirement only works when CI is fast. Tests that are
-        # unsafe under xdist are the bug (see tests/test_task_claim_concurrency.py
-        # for the pattern: barrier + one group deadline), not a reason to go serial.
+        # -n auto: ~2.5x faster on the 4-vCPU runners (22 -> ~10 min), and
+        # ADR-0032's "up to date" requirement only works when CI is fast. Tests
+        # that are unsafe under xdist are the bug (see
+        # tests/test_task_claim_concurrency.py for the pattern: barrier + one
+        # group deadline), not a reason to go serial.
+        #
+        # Coverage instrumentation costs 20-30% and one report is enough, so
+        # only the 3.12 leg (the required check on main) collects it.
         run: >-
-          pytest -n auto --cov=pyrite --cov-report=term-missing
+          pytest -n auto
+          ${{ matrix.python-version == '3.12' && '--cov=pyrite --cov-report=term-missing' || '' }}
           -W "error::DeprecationWarning:pyrite"
           -W "error::DeprecationWarning:tests"
 
