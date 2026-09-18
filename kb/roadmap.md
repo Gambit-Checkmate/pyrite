@@ -169,10 +169,14 @@ GitHub — when working toward a release, check `gh issue list --milestone` and
 
 ### Workstream 1 — Release process, operationalized
 
-- [[make-the-task-claim-concurrency-test-xdist-safe-then-run-pre-push-with-n-auto]]
-  (high, S) — parallel CI, ~22 min → ~5. Prerequisite for everything else.
-- CI change classifier: docs/KB-only pushes skip the heavy jobs (a skipped job
-  satisfies a required check); auto-merge for KB PRs. (ADR-0032 §2.)
+- ~~[[make-the-task-claim-concurrency-test-xdist-safe-then-run-pre-push-with-n-auto]]~~
+  **done 2026-09-17**: `-n auto` at pre-push and in CI; suite 3m37s → ~45 s
+  locally once write-time embedding was switched off for tests (it was the
+  whole cost); CI Python jobs 22 min → ~2.5 min tests + 20 s uv install.
+- ~~CI change classifier~~ **done 2026-09-17**: `changes` job; test/frontend/
+  coverage skip for docs/KB-only pushes; `kb` job validates KB changes in
+  ~30 s; coverage in its own non-required job; e2e on `main` and by hand only.
+  Auto-merge for KB PRs still to enable (repo setting, with protections).
 - Branch protection on per ADR-0032: `dev` and `main` require the three Python
   jobs + `frontend`, up to date, no bypass; linear history; `v*` tags protected;
   Dependabot security updates and private vulnerability reporting enabled.
