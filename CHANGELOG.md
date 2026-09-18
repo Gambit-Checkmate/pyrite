@@ -9,8 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
 
+### Changed
+
+- The test suite runs in parallel (`pytest -n auto`) at pre-push and in CI:
+  ~22 min → ~3-5 min. The one xdist-unsafe test (the task-claim race) now uses
+  a start barrier and a single group deadline instead of per-process timeouts,
+  which also makes it a real race rather than a sequence under load.
+
 ### Fixed
 
+- Entry files are written atomically (temp file + `os.replace`), preserving the
+  file's mode. A concurrent reader could previously see a truncated or empty
+  entry while another process was saving it — two agents on one KB (claim vs
+  reset, claim vs claim) hit exactly that path.
 - Pre-push hooks: every non-pytest hook is pinned to the commit stage, so a
   push runs only the test suite (the file fixers had been running over the
   whole pushed range and aborted the v0.24.1 push of a CI-verified commit)

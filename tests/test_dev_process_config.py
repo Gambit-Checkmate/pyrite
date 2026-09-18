@@ -118,3 +118,23 @@ class TestPrePushStage:
             if "pytest" not in str(hook.get("entry", "")) and hook.get("stages") is None
         ]
         assert offenders == [], f"hooks relying on default_stages (pin `stages:`): {offenders}"
+
+
+class TestParallelSuite:
+    # Serial: tests/ alone took 7m41s locally and ~22 min in CI. Parallel:
+    # tests/ + extensions/ in ~2-3 min. ADR-0032's up-to-date requirement is
+    # only livable with the fast number, so both gates pin -n auto.
+    def test_pre_push_runs_the_suite_in_parallel_including_extensions(self, precommit):
+        (hook,) = [h for h in _hooks(precommit) if "pytest" in str(h.get("entry", ""))]
+        assert "-n auto" in hook["entry"]
+        assert "extensions/" in hook["entry"]
+
+    def test_ci_runs_the_suite_in_parallel(self, ci):
+        runs = [
+            str(step.get("run", ""))
+            for job in ci["jobs"].values()
+            for step in job["steps"]
+            if "pytest" in str(step.get("run", ""))
+        ]
+        assert runs, "no pytest step in CI"
+        assert all("-n auto" in r for r in runs), runs

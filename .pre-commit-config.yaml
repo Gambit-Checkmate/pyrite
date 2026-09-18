@@ -86,7 +86,7 @@ repos:
         stages: [pre-commit]
       - id: pytest-full
         name: pytest full suite (pre-push, code changes only)
-        entry: bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY=python; exec "$PY" -m pytest tests/ -x -q --tb=short'
+        entry: bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY=python; exec "$PY" -m pytest tests/ extensions/ -n auto -q --tb=short'
         language: system
         pass_filenames: false
         # Matched against the files changed in the pushed range: a docs- or

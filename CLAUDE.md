@@ -121,11 +121,11 @@ One-time setup on a fresh clone: `.venv/bin/pip install -e ".[dev]"` (installs `
 |-------|-----------|
 | commit | ruff, ruff-format, trailing-whitespace, end-of-file, check-yaml, check-large-files, check-merge-conflict, debug-statements, import-cycle check, KB schema validation. Seconds. **No pytest.** |
 | commit-msg | `fix:` commits must touch `tests/` |
-| pre-push | full pytest suite (`-x`), only when the pushed range touches code or config |
+| pre-push | full pytest suite incl. `extensions/`, `-n auto` (~3 min), only when the pushed range touches code or config |
 | CI | the authority — everything above plus the full matrix |
 
 If ruff-format modifies files, re-stage and commit again.
 
 **Why the commit stage is fast:** pre-commit stashes *every* unstaged edit in the working tree to `~/.cache/pre-commit/patch*` while commit hooks run. With several sessions sharing the tree, a slow hook makes other sessions' edits vanish for minutes. `tests/test_dev_process_config.py` pins this layout — change the config and the tests together. If a commit is killed mid-hook (crash, Ctrl-C at the wrong moment), unstaged edits may exist *only* in the newest patch file: check `git apply --check ~/.cache/pre-commit/patch<newest>`, then `git apply` it.
 
-The pre-push suite is not currently 100% reliable: a small number of tests are order-dependent and fail only under a full-suite run, never in isolation (tracked in `full-suite-only-flaky-tests-state-leak-across-test-files`). If a blocked push's failure is a test you didn't touch and it passes standalone, that's very likely one of these — verify with `pytest tests/ -q` (no `-x`) before concluding it's safe to bypass, and only use `--no-verify` with a clear justification in the commit message plus a linked ticket if the flake isn't already tracked.
+The pre-push suite runs in parallel. A test that passes alone and fails under `-n auto` is a real bug in that test (shared state, fixed wall-clock timeouts under load, a shared port or path), not a reason to go serial; `tests/test_task_claim_concurrency.py` shows the pattern for process-spawning tests (start barrier + one group deadline). If a blocked push fails on a test you didn't touch, re-run that file under `-n auto` with the rest of the suite to confirm it is load-sensitive, then fix the test or file a GitHub issue for it; `--no-verify` needs a clear justification in the commit message plus the issue number.

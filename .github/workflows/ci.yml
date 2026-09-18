@@ -99,8 +99,12 @@ jobs:
         # `anyio.abc.BlockingPortal` alias warning failing collection).
         # Scope the escalation to pyrite's own modules; everything else
         # stays a visible warning.
+        # -n auto: the suite is ~4x faster on the 4-vCPU runners, and ADR-0032's
+        # "up to date" requirement only works when CI is fast. Tests that are
+        # unsafe under xdist are the bug (see tests/test_task_claim_concurrency.py
+        # for the pattern: barrier + one group deadline), not a reason to go serial.
         run: >-
-          pytest --cov=pyrite --cov-report=term-missing
+          pytest -n auto --cov=pyrite --cov-report=term-missing
           -W "error::DeprecationWarning:pyrite"
           -W "error::DeprecationWarning:tests"
 
