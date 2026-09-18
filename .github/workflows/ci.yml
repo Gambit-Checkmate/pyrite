@@ -48,10 +48,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          # Wheel cache keyed on every dependency manifest: the install step was
-          # ~1 min of the job before; a cache hit makes it seconds.
-          cache: pip
-          cache-dependency-path: |
+
+      - name: Set up uv
+        # pip took 80-130 s per job to resolve and build seven editable
+        # installs even with a warm wheel cache; uv does it in seconds, and it
+        # is the install path the README documents (`uv tool install`).
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
             pyproject.toml
             extensions/*/pyproject.toml
 
@@ -64,8 +69,7 @@ jobs:
         # while pip still exited 0 so the install step reported success.
         # `.[all]` is the whole optional surface (API, MCP, CLI, AI).
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[all,postgres]"
+          uv pip install --system -e ".[all,postgres]"
           # Extensions are separate distributions, covered by NO pyrite extra.
           # Without this loop 37 test modules fail at collection with
           # ModuleNotFoundError (pyrite_journalism_investigation,
@@ -75,7 +79,7 @@ jobs:
           # pure duplicate.
           for ext in extensions/*/; do
             if [ -f "$ext/pyproject.toml" ]; then
-              pip install -e "$ext"
+              uv pip install --system -e "$ext"
             fi
           done
 
@@ -182,6 +186,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -193,9 +203,8 @@ jobs:
         # playwright.config.ts launches the backend via .venv/bin/uvicorn,
         # so the venv path must match that expectation.
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[all]"
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e ".[all]"
 
       - name: Install web dependencies
         working-directory: web

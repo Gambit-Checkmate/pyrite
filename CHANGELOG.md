@@ -43,6 +43,8 @@ Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
   importing torch (~3 s) and calling the Hugging Face hub for metadata; under
   `-n auto` ten workers doing that at once thrashed the machine, and unrelated
   tests showed up at 50+ s.
+- CI installs with `uv` (80-130 s of pip resolving per job → seconds); coverage
+  is collected on the 3.12 leg only; wheels are cached.
 - The test suite runs in parallel (`pytest -n auto`) at pre-push and in CI:
   ~22 min → ~3-5 min. The one xdist-unsafe test (the task-claim race) now uses
   a start barrier and a single group deadline instead of per-process timeouts,

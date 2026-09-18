@@ -138,3 +138,17 @@ class TestParallelSuite:
         ]
         assert runs, "no pytest step in CI"
         assert all("-n auto" in r for r in runs), runs
+
+
+class TestCIInstall:
+    def test_python_jobs_install_with_uv(self, ci):
+        # pip spent 80-130 s per job resolving and building seven editable
+        # installs even with a warm wheel cache; uv does the same in seconds.
+        # It is also the install path the README documents (uv tool install).
+        job = ci["jobs"]["test"]
+        install = [s for s in job["steps"] if s.get("name") == "Install dependencies"]
+        assert install, "no 'Install dependencies' step"
+        run = str(install[0].get("run", ""))
+        assert "uv pip install" in run, run
+        assert "pip install -e" not in run.replace("uv pip install -e", ""), run
+        assert any("setup-uv" in str(s.get("uses", "")) for s in job["steps"])
