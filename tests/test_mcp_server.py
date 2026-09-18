@@ -210,6 +210,58 @@ class TestPyriteMCPServer:
         assert entry["id"] == entry_id
         assert entry["kb_name"] == "test-events"
 
+    def test_kb_batch_read_rejects_spec_missing_identity_keys(self, mcp_admin_server):
+        """A spec missing entry_id or kb_name is a client error, not INTERNAL.
+
+        Before the fix the comprehension in _kb_batch_read raised a raw
+        KeyError and _dispatch_tool's catch-all reported it as
+        INTERNAL/retryable=True (kb-batch-read-spec-validation-contract).
+        """
+        server = mcp_admin_server["server"]
+        for spec in ({"kb_name": "test-events"}, {"entry_id": "abc"}):
+            result = server._dispatch_tool("kb_batch_read", {"entries": [spec]})
+            assert result.get("error_code") == "VALIDATION_FAILED", result
+            assert result.get("retryable") is False, result
+
+    def test_kb_search_fields_projection_keeps_identity_pair(self, mcp_admin_server):
+        """`fields` never drops id/kb_name, for any projecting tool."""
+        server = mcp_admin_server["server"]
+        result = server._dispatch_tool(
+            "kb_search", {"query": "immigration", "kb_name": "test-events", "fields": ["title"]}
+        )
+        assert result["results"], result
+        for entry in result["results"]:
+            assert entry["id"] and entry["kb_name"], entry
+
+    def test_kb_get_fields_projection_keeps_identity_pair(self, mcp_admin_server):
+        server = mcp_admin_server["server"]
+        found = server._dispatch_tool(
+            "kb_search", {"query": "immigration", "kb_name": "test-events"}
+        )
+        entry_id = found["results"][0]["id"]
+        result = server._dispatch_tool(
+            "kb_get", {"entry_id": entry_id, "kb_name": "test-events", "fields": ["title"]}
+        )
+        entry = result["entry"]
+        assert entry["id"] == entry_id
+        assert entry["kb_name"] == "test-events"
+
+    def test_kb_list_entries_fields_projection_keeps_identity_pair(self, mcp_admin_server):
+        server = mcp_admin_server["server"]
+        result = server._dispatch_tool(
+            "kb_list_entries", {"kb_name": "test-events", "fields": ["title"]}
+        )
+        assert result["entries"], result
+        for entry in result["entries"]:
+            assert entry["id"] and entry["kb_name"], entry
+
+    def test_kb_recent_fields_projection_keeps_identity_pair(self, mcp_admin_server):
+        server = mcp_admin_server["server"]
+        result = server._dispatch_tool("kb_recent", {"kb_name": "test-events", "fields": ["title"]})
+        assert result["entries"], result
+        for entry in result["entries"]:
+            assert entry["id"] and entry["kb_name"], entry
+
     def test_kb_search_with_filters(self, mcp_admin_server):
         """Test search with filters."""
         result = mcp_admin_server["server"]._dispatch_tool(
