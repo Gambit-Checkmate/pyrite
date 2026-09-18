@@ -5,6 +5,7 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch:
 
 # A newer push to the same ref makes the older run's answer irrelevant. CI is
 # the gate (the full suite no longer runs at commit time -- see
@@ -175,13 +176,45 @@ jobs:
         # tests/test_task_claim_concurrency.py for the pattern: barrier + one
         # group deadline), not a reason to go serial.
         #
-        # Coverage instrumentation costs 20-30% and one report is enough, so
-        # only the 3.12 leg (the required check on main) collects it.
+        # No coverage here: it doubled the test step. The `coverage` job below
+        # collects it, and is not a required check.
         run: >-
           pytest -n auto
-          ${{ matrix.python-version == '3.12' && '--cov=pyrite --cov-report=term-missing' || '' }}
           -W "error::DeprecationWarning:pyrite"
           -W "error::DeprecationWarning:tests"
+
+  # ===========================================================================
+  # Coverage: its own job so the matrix stays the fast gate. Not a required
+  # check. A --cov-fail-under ratchet is added once the baseline is known.
+  # ===========================================================================
+  coverage:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            extensions/*/pyproject.toml
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[all]"
+          for ext in extensions/*/; do
+            if [ -f "$ext/pyproject.toml" ]; then uv pip install --system -e "$ext"; fi
+          done
+      - name: Run tests with coverage
+        run: pytest -n auto --cov=pyrite --cov-report=term-missing --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 14
 
   # ===========================================================================
   # Frontend: unit tests + svelte-check + build. Fast (~1 min); runs in
@@ -222,8 +255,11 @@ jobs:
   # vice versa. r1900 web-tests-in-ci.
   # ===========================================================================
   e2e:
+    # Runs on main and by hand only until the suite is deterministic
+    # (playwright-e2e-suite-non-deterministic-failures-...). On every push it
+    # cost 7 min of runner time for a result nobody could act on.
     needs: changes
-    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # TEMPORARILY NON-BLOCKING (2026-09-16). The suite is non-deterministic:

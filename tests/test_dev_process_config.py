@@ -168,7 +168,7 @@ class TestChangeClassifier:
         assert any("paths-filter" in str(s.get("uses", "")) for s in job["steps"])
         assert set(job["outputs"]) >= {"backend", "web", "kb"}
 
-    @pytest.mark.parametrize("name", ["test", "frontend", "e2e"])
+    @pytest.mark.parametrize("name", ["test", "frontend", "coverage"])
     def test_heavy_jobs_are_gated_on_the_classifier(self, ci, name):
         job = ci["jobs"][name]
         assert "changes" in job.get("needs", []), f"{name} must need: changes"
@@ -185,3 +185,26 @@ class TestChangeClassifier:
         assert "needs.changes.outputs.kb" in str(job["if"])
         steps = "\n".join(str(s.get("run", "")) for s in job["steps"])
         assert "pyrite schema validate" in steps
+
+
+class TestCoverageAndE2EPolicy:
+    def test_matrix_jobs_do_not_collect_coverage(self, ci):
+        # Coverage doubled the 3.12 test step (214 s vs ~90 s). It lives in its
+        # own non-required job; the matrix is the fast gate.
+        runs = "\n".join(str(s.get("run", "")) for s in ci["jobs"]["test"]["steps"])
+        assert "--cov" not in runs
+
+    def test_coverage_has_its_own_job(self, ci):
+        job = ci["jobs"]["coverage"]
+        runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
+        assert "--cov=pyrite" in runs and "-n auto" in runs
+        assert "changes" in job.get("needs", [])
+
+    def test_e2e_runs_only_on_main_or_by_hand(self, ci):
+        # Non-deterministic today; it was burning 7 min per push for a signal
+        # nobody could act on. Back on every push when
+        # playwright-e2e-suite-non-deterministic-failures-... lands.
+        cond = str(ci["jobs"]["e2e"]["if"])
+        assert "refs/heads/main" in cond and "workflow_dispatch" in cond
+        assert "needs.changes.outputs" not in cond
+        assert "workflow_dispatch" in ci[True] if True in ci else ci["on"]
