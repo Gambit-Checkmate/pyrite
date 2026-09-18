@@ -58,8 +58,35 @@ CHECKLIST — before any implementation:
 - [ ] Check kb/adrs/ for relevant architecture decisions
 - [ ] Identify which files need to change (see Key Source Files)
 - [ ] Check existing tests for the area being modified
+- [ ] `gh issue list --label <area>` — bugs live on GitHub (ADR-0033), not in kb/
 - [ ] If multi-step: create tasks with TaskCreate, set dependencies
 ```
+
+### Two trackers, one rule (ADR-0033)
+
+Bugs and user requests live in **GitHub Issues**; the **roadmap** (epics,
+backlog items, ADRs) lives in `kb/`. An item is in exactly one place; the
+other side links to it. So:
+
+- Found a bug? `gh issue create --label bug --label <area>` — not a backlog
+  item. Same placeholder rule as the KB: no private subjects or paths. A bug
+  you fix in the same PR that found it needs no issue; the PR is the record.
+- Fixing a bug? The commit or PR says `Fixes #N`.
+- A user request you accept becomes a backlog item with `github_issue: N`;
+  label the issue `roadmap` and leave it open until it ships.
+
+**Working on the roadmap or toward a release** — read both surfaces before
+choosing or scoping anything:
+
+```bash
+gh issue list --milestone "<next version>" --state all   # what the release owes
+gh issue list --label bug --state open                   # what is broken
+gh pr list --state open                                  # what is waiting on review
+.venv/bin/pyrite sw backlog --status proposed            # what is planned
+```
+
+`kb/roadmap.md` is the plan; the GitHub milestone is the bug list for that
+plan. A release is not done while its milestone has open issues.
 
 ### Test-Driven Development
 

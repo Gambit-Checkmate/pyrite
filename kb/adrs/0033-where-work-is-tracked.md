@@ -3,7 +3,7 @@ id: adr-0033
 type: adr
 title: "Where work is tracked: GitHub issues for bugs and requests, the KB for the roadmap"
 adr_number: 33
-status: proposed
+status: accepted
 deciders: ["markr"]
 date: "2026-09-17"
 tags: [process, backlog, github, contributor-experience, governance]
@@ -154,7 +154,14 @@ continue unchanged — this is the part of the dogfooding worth keeping.
 3. Seed 5–10 `good first issue` items from the small, well-specified ones above.
 4. Update CONTRIBUTING, the PR template (`Fixes #N`), the pyrite-dev skill
    (where to file what; the `gh issue list` step) and `kb/backlog/README.md`.
-5. File the roadmap item for the GitHub-issues importer.
+5. ~~File the roadmap item for the GitHub-issues importer.~~ Decided 2026-09-17:
+   not a priority. The pyrite-dev skill checks GitHub with `gh` when working on
+   the roadmap or toward a release; the importer stays in "later, unscheduled".
+
+## Decisions (2026-09-17, markr)
+
+Steps 1–3 of the migration ran the same day: labels, issues #9–#21, files
+superseded. The importer is not a priority; agents use `gh` directly.
 
 ## Open questions
 

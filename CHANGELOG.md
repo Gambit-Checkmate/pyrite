@@ -5,6 +5,16 @@ All notable changes to Pyrite will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Target: 0.24.2 "Operational" — see `kb/roadmap.md`.
+
+### Fixed
+
+- Pre-push hooks: every non-pytest hook is pinned to the commit stage, so a
+  push runs only the test suite (the file fixers had been running over the
+  whole pushed range and aborted the v0.24.1 push of a CI-verified commit)
+
 ## [0.24.1] - 2026-09-17
 
 Five months of work across about 250 commits (roughly 175 substantive, 75
