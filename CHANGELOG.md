@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`pyrite create -t <type>` no longer silently files a different type when the
+  KB does not declare the one asked for (#197).** Core types were exempt from
+  the CLI's write-side refusal, so `-t note` against a KB whose schema declares
+  only `adr | backlog_item | component | standard` skipped the guard, and plugin
+  type resolution then promoted it to its most-derived `note` subtype — an ADR
+  with `adr_number: 0` under `kb/adrs/`, from a command that asked for a note.
+  The refusal now covers every type the KB does not declare; `--allow-undeclared`
+  still overrides it.
+
 ## [0.24.3] - 2026-09-20
 
 "Operational" — see `kb/roadmap.md`.
@@ -460,15 +471,6 @@ which Pyrite stops being one person's experiment.
 - CONTRIBUTING: how to claim an issue
 
 ### Fixed
-
-- **`pyrite create -t <type>` no longer silently files a different type when the
-  KB does not declare the one asked for (#197).** Core types were exempt from
-  the CLI's write-side refusal, so `-t note` against a KB whose schema declares
-  only `adr | backlog_item | component | standard` skipped the guard, and plugin
-  type resolution then promoted it to its most-derived `note` subtype — an ADR
-  with `adr_number: 0` under `kb/adrs/`, from a command that asked for a note.
-  The refusal now covers every type the KB does not declare; `--allow-undeclared`
-  still overrides it.
 
 - **The first write on a fresh install no longer blocks for over a minute
   downloading the embedding model (#13).** `KBService._auto_embed` took a
