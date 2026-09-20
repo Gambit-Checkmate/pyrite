@@ -147,6 +147,26 @@ class TestPeerCannotSeePrivateKB:
         assert _ids(r) == {"public-note"}
         assert {n["entry_id"] for n in r.json()["not_found"]} == {"secret-note"}
 
+    def test_batch_read_reports_private_as_not_found_with_fields(self, env):
+        """The `fields` path must not leak the private KB's name either (#134 review)."""
+        r = env["peer"].post(
+            "/api/entries/batch",
+            json={
+                "entries": [
+                    {"entry_id": "public-note", "kb_name": PUBLIC},
+                    {"entry_id": "secret-note", "kb_name": PRIVATE},
+                ],
+                "fields": ["title"],
+            },
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert _ids(r) == {"public-note"}
+        assert {n["entry_id"] for n in body["not_found"]} == {"secret-note"}
+        for entry in body["entries"]:
+            assert PRIVATE not in entry["kb_name"]
+            assert "id" in entry and "kb_name" in entry
+
     def test_graph_has_no_private_nodes(self, env):
         r = env["peer"].get("/api/graph")
         assert r.status_code == 200
