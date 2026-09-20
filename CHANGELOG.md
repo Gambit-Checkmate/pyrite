@@ -33,6 +33,13 @@ The move is not a rename. It is what makes pull request queues, contributor
 permissions and a home for community extensions possible — and the point at
 which Pyrite stops being one person's experiment.
 
+### Fixed
+
+- The `pyrite` CLI now configures the package logger at startup, so warnings
+  use the standard timestamped stderr format without tracebacks while JSON
+  stdout remains parseable. Library imports install only a `NullHandler` and
+  leave application and root logging configuration untouched (#196).
+
 ### Security
 
 - **Private-KB content was readable over MCP-over-HTTP by any logged-in
